@@ -1,0 +1,21 @@
+import { Layout } from '../components/Layout';
+import { useAppStore } from '../stores/useAppStore';
+import Home from './Home';
+import Jobs from './Jobs';
+import Messages from './Messages';
+import Applications from './Applications';
+import Settings from './Settings';
+
+export default function Dashboard() {
+  const activeTab = useAppStore((s) => s.activeTab);
+
+  return (
+    <Layout>
+      {activeTab === 'home' && <Home />}
+      {activeTab === 'jobs' && <Jobs />}
+      {activeTab === 'messages' && <Messages />}
+      {activeTab === 'applications' && <Applications />}
+      {activeTab === 'settings' && <Settings />}
+    </Layout>
+  );
+}

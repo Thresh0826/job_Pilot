@@ -1,0 +1,49 @@
+{
+  "name": "jobpilot",
+  "version": "0.1.0",
+  "description": "JobPilot - 本地优先的 AI 求职 Agent（V0.1 桌面应用基础）",
+  "author": "JobPilot",
+  "license": "MIT",
+  "private": true,
+  "main": "dist-electron/electron/main/index.js",
+  "scripts": {
+    "postinstall": "node scripts/setup-native.cjs",
+    "dev": "npm run build:electron && concurrently -k -s first \"npm:dev:renderer\" \"npm:dev:electron\"",
+    "dev:renderer": "vite",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
+    "build:electron": "tsc -p tsconfig.node.json",
+    "build:renderer": "vite build",
+    "build": "npm run build:electron && npm run build:renderer",
+    "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "lint": "eslint .",
+    "smoke": "electron scripts/smoke-test.cjs",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\" \"database/**/*.ts\" \"core/**/*.ts\" \"platforms/**/*.ts\" \"shared/**/*.ts\"",
+    "dist": "npm run build && node scripts/setup-native.cjs && electron-builder"
+  },
+  "dependencies": {
+    "better-sqlite3": "12.11.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.5",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "42.9.2",
+    "electron-builder": "26.15.3",
+    "eslint": "^9.30.0",
+    "lucide-react": "^0.525.0",
+    "prebuild-install": "^7.1.3",
+    "prettier": "^3.6.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.40.0",
+    "vite": "^8.2.1",
+    "wait-on": "^8.0.3",
+    "zustand": "^5.0.6"
+  }
+}

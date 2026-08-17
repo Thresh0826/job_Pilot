@@ -1,0 +1,35 @@
+appId: com.jobpilot.app
+productName: JobPilot
+copyright: Copyright © 2025 JobPilot
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist-electron/**/*
+  - dist/renderer/**/*
+  - package.json
+
+asarUnpack:
+  - "**/*.node"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: JobPilot
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+# better-sqlite3 的 Electron 预编译二进制由 scripts/setup-native.cjs 准备，
+# 禁用 electron-builder 的源码重建以避免依赖 MSVC 编译工具链。
+npmRebuild: false

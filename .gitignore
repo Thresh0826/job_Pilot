@@ -1,0 +1,45 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-electron/
+release/
+build/
+
+# environment
+.env
+.env.*
+!.env.example
+
+# local data
+data/
+dev-data/
+
+# databases
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# browser automation data
+browser/
+browser-profile/
+browser-data/
+
+# user files
+resumes/
+
+# logs
+logs/
+*.log
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# tests
+coverage/

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-electron/
+release/
+dev-data/
+package-lock.json
+*.db
+*.sqlite
