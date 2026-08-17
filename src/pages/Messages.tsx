@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Bot } from 'lucide-react';
-import { Badge, Button, Card, useToast } from '../components/ui';
+import { Badge, Button, useToast } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
+import { AIRecommendation } from '../components/AIRecommendation';
 import { MOCK_CONVERSATIONS, MOCK_MESSAGES, MOCK_PENDING_MESSAGES } from '../mock/data';
 
 export default function Messages() {
@@ -9,97 +10,77 @@ export default function Messages() {
 
   const conv = MOCK_CONVERSATIONS.find((c) => c.id === selectedId);
   const messages = MOCK_MESSAGES.filter((m) => m.conversationId === selectedId);
-  const pending = MOCK_PENDING_MESSAGES.find((m) => m.company === conv?.company) ?? MOCK_PENDING_MESSAGES[0];
+  const pending = MOCK_PENDING_MESSAGES.find((m) => m.conversationId === selectedId);
 
   return (
     <div className="page" style={{ maxWidth: 1200 }}>
-      <div className="page__header">
-        <h1 className="page__title">沟通</h1>
-        <p className="page__desc">模拟聊天列表，V0.1 不支持真实发送。</p>
-      </div>
+      <PageHeader title="沟通" desc="V0.1 为模拟数据，暂不支持真实发送。" />
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, alignItems: 'start' }}>
-        <Card>
-          <div className="list">
+      <div className="messages">
+        <div className="card" style={{ padding: 12, overflowY: 'auto' }}>
+          <div className="list" style={{ gap: 2 }}>
             {MOCK_CONVERSATIONS.map((c) => (
               <button
                 key={c.id}
+                className={`conversation ${c.id === selectedId ? 'conversation--active' : ''}`}
                 onClick={() => setSelectedId(c.id)}
-                className="list-item"
-                style={{
-                  background: c.id === selectedId ? 'var(--accent-soft)' : undefined,
-                  border: '1px solid var(--border)',
-                  textAlign: 'left',
-                  width: '100%',
-                }}
               >
-                <div className="list-item__main">
-                  <div className="list-item__title">
+                <div className="conversation__main">
+                  <div className="conversation__title">
                     {c.company} {c.unread ? <Badge variant="accent">新</Badge> : null}
                   </div>
-                  <div className="list-item__sub">
+                  <div className="conversation__preview">
                     {c.title} · {c.lastMessage}
                   </div>
                 </div>
-                <div className="small muted">{c.time}</div>
+                <span className="conversation__time">{c.time}</span>
               </button>
             ))}
           </div>
-        </Card>
+        </div>
 
-        <Card>
+        <div className="card chat">
           {conv ? (
-            <div>
-              <div style={{ paddingBottom: 14, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
+            <>
+              <div className="chat__head">
                 <div className="list-item__title">
                   {conv.company} · {conv.title}
                 </div>
                 <div className="small muted">{conv.time}</div>
               </div>
 
-              <div style={{ minHeight: 260 }}>
+              <div className="chat__body">
                 {messages.length === 0 ? (
                   <div className="empty">暂无消息</div>
                 ) : (
                   messages.map((m) => (
-                    <div key={m.id} className={`msg-row ${m.from === 'AI' ? 'msg-row--ai' : ''}`}>
-                      <div className="bubble">{m.content}</div>
-                      <div className="bubble__meta">
-                        {m.from === 'HR' ? 'HR' : 'AI'} · {m.time}
+                    <div key={m.id} className={`msg ${m.from === 'USER' ? 'msg--user' : 'msg--hr'}`}>
+                      <div>{m.content}</div>
+                      <div className="msg__meta">
+                        {m.from === 'HR' ? 'HR' : '你'} · {m.time}
                       </div>
                     </div>
                   ))
                 )}
 
                 {pending ? (
-                  <div className="msg-row msg-row--ai">
-                    <div className="bubble">
-                      <div className="small muted" style={{ marginBottom: 6 }}>
-                        <Bot size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                        AI 建议回复
-                      </div>
-                      {pending.aiSuggestion}
-                    </div>
+                  <div style={{ marginTop: 4 }}>
+                    <AIRecommendation>{pending.aiSuggestion}</AIRecommendation>
                   </div>
                 ) : null}
               </div>
 
-              <div className="row" style={{ marginTop: 16, alignItems: 'center' }}>
-                <input
-                  className="input"
-                  placeholder="V0.1 暂不支持真实发送消息"
-                  disabled
-                  style={{ flex: 1 }}
-                />
-                <Button variant="ghost" size="sm" onClick={() => toast('真实发送将在后续版本开放。')}>
+              <div className="chat__composer">
+                <input className="input" placeholder="V0.1 暂不支持真实发送消息" disabled />
+                <Button variant="secondary" size="sm" onClick={() => toast('真实发送将在后续版本开放。')}>
                   发送
                 </Button>
               </div>
-            </div>
+            </>
           ) : (
             <div className="empty">选择一个会话</div>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );

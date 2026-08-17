@@ -1,5 +1,5 @@
 import { AI_TOPICS, type AiPermissionConfig, type AiPermissionMode, type AiTopic } from '../../../core/ai';
-import { ChoiceGroup, Field } from '../ui';
+import { Field, SegmentedControl } from '../ui';
 
 const TOPIC_LABELS: Record<AiTopic, string> = {
   greeting: '基础问候',
@@ -27,10 +27,10 @@ export function AiPermissionsForm({
     <div>
       {AI_TOPICS.map((topic) => (
         <Field key={topic} label={TOPIC_LABELS[topic]}>
-          <ChoiceGroup
+          <SegmentedControl
             options={MODE_OPTIONS}
             value={value[topic]}
-            onChange={(mode) => onChange({ ...value, [topic]: mode as AiPermissionMode })}
+            onChange={(mode) => onChange({ ...value, [topic]: mode })}
           />
         </Field>
       ))}

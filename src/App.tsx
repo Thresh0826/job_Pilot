@@ -18,7 +18,10 @@ export default function App() {
     <div className="app">
       {!bootstrapped ? (
         <div className="splash">
-          <div className="splash__mark">JobPilot</div>
+          <div className="splash__mark">
+            <span className="splash__dot" />
+            JobPilot
+          </div>
         </div>
       ) : phase === 'welcome' ? (
         <Welcome />

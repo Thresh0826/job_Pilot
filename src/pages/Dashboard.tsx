@@ -1,4 +1,4 @@
-import { Layout } from '../components/Layout';
+import { AppShell } from '../components/AppShell';
 import { useAppStore } from '../stores/useAppStore';
 import Home from './Home';
 import Jobs from './Jobs';
@@ -10,12 +10,12 @@ export default function Dashboard() {
   const activeTab = useAppStore((s) => s.activeTab);
 
   return (
-    <Layout>
+    <AppShell>
       {activeTab === 'home' && <Home />}
       {activeTab === 'jobs' && <Jobs />}
       {activeTab === 'messages' && <Messages />}
       {activeTab === 'applications' && <Applications />}
       {activeTab === 'settings' && <Settings />}
-    </Layout>
+    </AppShell>
   );
 }

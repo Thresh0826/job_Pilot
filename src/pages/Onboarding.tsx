@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { createDefaultSettings, type SettingsSnapshot } from '../../shared/settings';
 import { useAppStore } from '../stores/useAppStore';
-import { Button } from '../components/ui';
+import { Button, StatusDot } from '../components/ui';
 import { ProfileForm } from '../components/forms/ProfileForm';
 import { ResumeForm } from '../components/forms/ResumeForm';
 import { TargetForm } from '../components/forms/TargetForm';
@@ -18,13 +18,32 @@ interface StepMeta {
 }
 
 const STEPS: StepMeta[] = [
-  { title: '基础资料', subtitle: '让我们先认识一下你', skippable: true },
-  { title: '简历', subtitle: '上传你的简历，帮助我们了解你的经历', skippable: true },
-  { title: '求职目标', subtitle: '告诉 JobPilot 你想找什么样的工作', skippable: true },
-  { title: '工作偏好', subtitle: '你的工作偏好与底线', skippable: true },
-  { title: 'AI 权限', subtitle: '决定 AI 可以自动回复哪些内容', skippable: true },
-  { title: '招聘平台', subtitle: '连接招聘平台（当前为占位）', skippable: false },
+  { title: '先认识一下你', subtitle: '这些信息能帮助 JobPilot 更精准地推荐机会。', skippable: true },
+  { title: '上传你的简历', subtitle: '支持 PDF 或 DOCX，之后可以随时更换。', skippable: true },
+  { title: '你想找什么工作？', subtitle: '目标岗位、薪资、地点和行业偏好。', skippable: true },
+  { title: '你对工作的基本要求是什么？', subtitle: '双休、出差、通勤与公司规模等。', skippable: true },
+  { title: '哪些事情可以交给 JobPilot？', subtitle: '决定 AI 可以自动回复哪些内容，重要的事交给你。', skippable: true },
+  { title: '连接招聘平台', subtitle: '当前为占位，后续版本将接入真实平台。', skippable: false },
 ];
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <div className="steps" aria-label={`第 ${current + 1} 步，共 ${STEPS.length} 步`}>
+      {STEPS.map((s, i) => (
+        <div className="steps__item" key={s.title} style={{ display: 'flex', alignItems: 'center' }}>
+          <div
+            className={`steps__dot ${i < current ? 'steps__dot--done' : i === current ? 'steps__dot--active' : ''}`}
+          >
+            {i < current ? <Check size={13} /> : i + 1}
+          </div>
+          {i < STEPS.length - 1 ? (
+            <div className={`steps__line ${i < current ? 'steps__line--done' : ''}`} />
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function Onboarding() {
   const settings = useAppStore((s) => s.settings);
@@ -58,16 +77,32 @@ export default function Onboarding() {
       <div className="wizard">
         <div className="wizard__body" style={{ display: 'grid', placeItems: 'center', textAlign: 'center' }}>
           <div>
-            <CheckCircle2 size={64} color="var(--success)" style={{ marginBottom: 20 }} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+              <span
+                style={{
+                  display: 'grid',
+                  placeItems: 'center',
+                  width: 56,
+                  height: 56,
+                  borderRadius: '50%',
+                  background: 'var(--jp-agent-soft)',
+                  color: 'var(--jp-agent)',
+                }}
+              >
+                <Check size={26} />
+              </span>
+            </div>
             <h1 className="wizard__title">准备完成</h1>
             <p className="wizard__subtitle" style={{ maxWidth: 360, margin: '0 auto 32px' }}>
-              JobPilot 已了解你的基础求职需求。
+              JobPilot 已经了解你的基本求职需求。
               <br />
-              这些设置以后可以随时修改。
+              之后你可以随时在设置中调整。
             </p>
-            <Button size="md" onClick={() => goDashboard('home')}>
-              开始找工作
-            </Button>
+            <Button onClick={() => goDashboard('home')}>开始找工作</Button>
+            <div className="mt-16" style={{ display: 'flex', justifyContent: 'center', gap: 6, alignItems: 'center' }}>
+              <StatusDot variant="agent" />
+              <span className="small muted">JobPilot 已就绪</span>
+            </div>
           </div>
         </div>
       </div>
@@ -78,14 +113,10 @@ export default function Onboarding() {
     <div className="wizard">
       <div className="wizard__head">
         <div className="wizard__brand">
-          <div className="sidebar__logo">J</div>
-          <span className="sidebar__name">JobPilot</span>
+          <StatusDot variant="agent" />
+          JobPilot
         </div>
-        <div className="steps">
-          {STEPS.map((s, i) => (
-            <div key={s.title} className={`step ${i < step ? 'step--done' : i === step ? 'step--active' : ''}`} />
-          ))}
-        </div>
+        <StepIndicator current={step} />
       </div>
 
       <div className="wizard__body">
@@ -104,7 +135,7 @@ export default function Onboarding() {
               value={draft.aiPermissions}
               onChange={(aiPermissions) => update({ aiPermissions })}
             />
-            <h2 className="card__title" style={{ marginTop: 26 }}>
+            <h2 className="section-title" style={{ marginTop: 28, marginBottom: 16 }}>
               重要消息通知
             </h2>
             <NotificationForm
@@ -122,17 +153,19 @@ export default function Onboarding() {
             暂时跳过
           </button>
         ) : (
-          <span />
+          <span className="wizard__count">
+            {step + 1} / {STEPS.length}
+          </span>
         )}
 
         <div className="row" style={{ flex: 'none' }}>
           {step > 0 && (
-            <Button variant="ghost" onClick={back}>
+            <Button variant="secondary" onClick={back}>
               上一步
             </Button>
           )}
           {isLast ? (
-            <Button onClick={() => void complete()} disabled={saving}>
+            <Button variant="accent" onClick={() => void complete()} disabled={saving}>
               {saving ? '保存中…' : '完成配置'}
             </Button>
           ) : (

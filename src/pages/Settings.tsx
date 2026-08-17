@@ -1,7 +1,18 @@
 import { useEffect, useState } from 'react';
+import {
+  Bell,
+  Bot,
+  Plug,
+  Settings as SettingsIcon,
+  SlidersHorizontal,
+  Target,
+  User,
+  type LucideIcon,
+} from 'lucide-react';
 import type { SettingsSnapshot } from '../../shared/settings';
 import { useAppStore } from '../stores/useAppStore';
-import { Button, Card, useToast } from '../components/ui';
+import { Badge, Button, useToast } from '../components/ui';
+import { PageHeader } from '../components/PageHeader';
 import { ProfileForm } from '../components/forms/ProfileForm';
 import { ResumeForm } from '../components/forms/ResumeForm';
 import { TargetForm } from '../components/forms/TargetForm';
@@ -10,13 +21,28 @@ import { AiPermissionsForm } from '../components/forms/AiPermissionsForm';
 import { NotificationForm } from '../components/forms/NotificationForm';
 import { PlatformForm } from '../components/forms/PlatformForm';
 
+type SectionId = 'profile' | 'target' | 'preference' | 'ai' | 'platform' | 'notification' | 'app';
+
+const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
+  { id: 'profile', label: '个人资料', icon: User },
+  { id: 'target', label: '求职目标', icon: Target },
+  { id: 'preference', label: '工作偏好', icon: SlidersHorizontal },
+  { id: 'ai', label: 'AI 权限', icon: Bot },
+  { id: 'platform', label: '招聘平台', icon: Plug },
+  { id: 'notification', label: '通知', icon: Bell },
+  { id: 'app', label: '应用设置', icon: SettingsIcon },
+];
+
 export default function Settings() {
   const settings = useAppStore((s) => s.settings);
   const settingsLoaded = useAppStore((s) => s.settingsLoaded);
   const loadSettings = useAppStore((s) => s.loadSettings);
   const saveSettings = useAppStore((s) => s.saveSettings);
+  const runMode = useAppStore((s) => s.runMode);
+  const dataDir = useAppStore((s) => s.dataDir);
   const toast = useToast();
 
+  const [section, setSection] = useState<SectionId>('profile');
   const [draft, setDraft] = useState<SettingsSnapshot | null>(settings);
 
   useEffect(() => {
@@ -30,7 +56,7 @@ export default function Settings() {
   if (!draft) {
     return (
       <div className="page">
-        <div className="empty">加载中…</div>
+        <div className="empty">正在读取你的求职设置…</div>
       </div>
     );
   }
@@ -44,74 +70,90 @@ export default function Settings() {
   };
 
   return (
-    <div className="page">
-      <div className="page__header">
-        <h1 className="page__title">设置</h1>
-        <p className="page__desc">所有首次配置的内容都可以在这里随时修改。</p>
-      </div>
+    <div className="page" style={{ maxWidth: 1080 }}>
+      <PageHeader title="设置" desc="所有首次配置的内容都可以在这里随时修改。" />
 
-      <div className="settings__section">
-        <div className="settings__section-head">
-          <h2 className="settings__section-title">基础资料</h2>
+      <div className="settings">
+        <nav className="settings__nav" aria-label="设置分类">
+          {SECTIONS.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button
+                key={s.id}
+                className={`settings__nav-item ${section === s.id ? 'settings__nav-item--active' : ''}`}
+                onClick={() => setSection(s.id)}
+              >
+                <Icon size={16} strokeWidth={1.8} />
+                {s.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="settings__panel">
+          <div className="card">
+            {section === 'profile' && (
+              <div>
+                <ProfileForm value={draft.profile} onChange={(profile) => update({ profile })} />
+                <h2 className="section-title" style={{ margin: '24px 0 16px' }}>
+                  简历
+                </h2>
+                <ResumeForm value={draft.resume} onChange={(resume) => update({ resume })} />
+              </div>
+            )}
+
+            {section === 'target' && (
+              <TargetForm value={draft.jobTarget} onChange={(jobTarget) => update({ jobTarget })} />
+            )}
+
+            {section === 'preference' && (
+              <PreferencesForm
+                value={draft.jobPreferences}
+                onChange={(jobPreferences) => update({ jobPreferences })}
+              />
+            )}
+
+            {section === 'ai' && (
+              <AiPermissionsForm
+                value={draft.aiPermissions}
+                onChange={(aiPermissions) => update({ aiPermissions })}
+              />
+            )}
+
+            {section === 'platform' && (
+              <PlatformForm value={draft.platforms} onChange={(platforms) => update({ platforms })} />
+            )}
+
+            {section === 'notification' && (
+              <NotificationForm
+                value={draft.notifications}
+                onChange={(notifications) => update({ notifications })}
+              />
+            )}
+
+            {section === 'app' && (
+              <div>
+                <div className="field">
+                  <span className="field__label">运行模式</span>
+                  <div>
+                    {runMode === 'TEST' ? <Badge variant="test">测试模式</Badge> : <Badge variant="agent">正式模式</Badge>}
+                  </div>
+                  <span className="hint">测试模式下禁止真实投递与发送消息，仅使用本地模拟数据。</span>
+                </div>
+                <div className="field">
+                  <span className="field__label">数据目录</span>
+                  <div className="small muted" style={{ wordBreak: 'break-all' }}>
+                    {dataDir || '—'}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="settings__save">
+            <Button onClick={() => void save()}>保存设置</Button>
+          </div>
         </div>
-        <Card>
-          <ProfileForm value={draft.profile} onChange={(profile) => update({ profile })} />
-        </Card>
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">简历</h2>
-        <Card>
-          <ResumeForm value={draft.resume} onChange={(resume) => update({ resume })} />
-        </Card>
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">求职目标</h2>
-        <Card>
-          <TargetForm value={draft.jobTarget} onChange={(jobTarget) => update({ jobTarget })} />
-        </Card>
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">工作偏好</h2>
-        <Card>
-          <PreferencesForm
-            value={draft.jobPreferences}
-            onChange={(jobPreferences) => update({ jobPreferences })}
-          />
-        </Card>
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">AI 权限</h2>
-        <Card>
-          <AiPermissionsForm
-            value={draft.aiPermissions}
-            onChange={(aiPermissions) => update({ aiPermissions })}
-          />
-        </Card>
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">通知设置</h2>
-        <Card>
-          <NotificationForm
-            value={draft.notifications}
-            onChange={(notifications) => update({ notifications })}
-          />
-        </Card>
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">招聘平台</h2>
-        <Card>
-          <PlatformForm value={draft.platforms} onChange={(platforms) => update({ platforms })} />
-        </Card>
-      </div>
-
-      <div className="settings__save">
-        <Button onClick={() => void save()}>保存设置</Button>
       </div>
     </div>
   );

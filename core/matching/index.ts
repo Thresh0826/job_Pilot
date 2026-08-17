@@ -16,4 +16,12 @@ export interface Job {
   matchScore?: number;
   tags?: string[];
   postedAt?: string;
+  /** 区/县，例如 "无锡滨湖"。 */
+  district?: string;
+  /** 学历要求，例如 "本科"。 */
+  education?: string;
+  /** 经验要求，例如 "经验不限"。 */
+  experience?: string;
+  /** JobPilot 推荐摘要（结构化说明为什么推荐）。 */
+  aiSummary?: string;
 }

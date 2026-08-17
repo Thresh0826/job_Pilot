@@ -1,4 +1,5 @@
 import { useState, type DragEvent } from 'react';
+import { FileText } from 'lucide-react';
 import type { ResumeRecord } from '../../../core/resume';
 import { Button, useToast } from '../ui';
 
@@ -81,7 +82,9 @@ export function ResumeForm({
       onDragLeave={() => setDragOver(false)}
       onDrop={onDrop}
     >
-      <div className="dropzone__icon">📄</div>
+      <div className="dropzone__icon">
+        <FileText size={30} strokeWidth={1.5} />
+      </div>
       <div style={{ fontWeight: 650 }}>拖入你的简历</div>
       <div className="small muted mt-8">PDF / DOCX</div>
       <Button className="mt-16" variant="ghost" onClick={() => void pick()}>

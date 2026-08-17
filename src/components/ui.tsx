@@ -6,12 +6,13 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from 'react';
+import { X } from 'lucide-react';
 import { create } from 'zustand';
 
 /* ------------------------------------------------------------------ */
 /* Button                                                              */
 /* ------------------------------------------------------------------ */
-type ButtonVariant = 'primary' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger';
 type ButtonSize = 'md' | 'sm';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -34,11 +35,20 @@ export function Button({
 }
 
 /* ------------------------------------------------------------------ */
+/* Status dot                                                          */
+/* ------------------------------------------------------------------ */
+type DotVariant = 'agent' | 'attention' | 'danger' | 'neutral' | 'accent';
+
+export function StatusDot({ variant = 'neutral' }: { variant?: DotVariant }) {
+  return <span className={`dot dot--${variant}`} aria-hidden />;
+}
+
+/* ------------------------------------------------------------------ */
 /* Badge                                                               */
 /* ------------------------------------------------------------------ */
-type BadgeVariant = 'test' | 'muted' | 'accent' | 'success' | 'danger';
+type BadgeVariant = 'neutral' | 'accent' | 'agent' | 'attention' | 'danger' | 'test';
 
-export function Badge({ variant = 'muted', children }: { variant?: BadgeVariant; children: ReactNode }) {
+export function Badge({ variant = 'neutral', children }: { variant?: BadgeVariant; children: ReactNode }) {
   return <span className={`badge badge--${variant}`}>{children}</span>;
 }
 
@@ -49,13 +59,15 @@ export function Card({
   title,
   children,
   className = '',
+  flat = false,
 }: {
   title?: ReactNode;
   children: ReactNode;
   className?: string;
+  flat?: boolean;
 }) {
   return (
-    <div className={`card ${className}`}>
+    <div className={`card ${flat ? 'card--flat' : ''} ${className}`}>
       {title ? <h3 className="card__title">{title}</h3> : null}
       {children}
     </div>
@@ -120,7 +132,7 @@ export function TagInput({
   value,
   onChange,
   placeholder = '输入后回车添加',
-  addLabel = '+ 添加',
+  addLabel = '添加',
   suggestions = [],
 }: {
   value: string[];
@@ -157,8 +169,13 @@ export function TagInput({
         {value.map((item) => (
           <span className="tag" key={item}>
             {item}
-            <button type="button" className="tag__remove" onClick={() => remove(item)} aria-label={`删除 ${item}`}>
-              ×
+            <button
+              type="button"
+              className="tag__remove"
+              onClick={() => remove(item)}
+              aria-label={`删除 ${item}`}
+            >
+              <X size={12} />
             </button>
           </span>
         ))}
@@ -175,7 +192,7 @@ export function TagInput({
             }
           }}
         />
-        <Button variant="ghost" size="sm" onClick={add} type="button">
+        <Button variant="secondary" size="sm" onClick={add} type="button">
           {addLabel}
         </Button>
       </div>
@@ -195,7 +212,7 @@ export function TagInput({
 }
 
 /* ------------------------------------------------------------------ */
-/* 单选 / 多选组                                                       */
+/* 单选 / 多选组（Radio / Chip 风格）                                  */
 /* ------------------------------------------------------------------ */
 export function ChoiceGroup<T extends string>({
   options,
@@ -227,6 +244,7 @@ export function ChoiceGroup<T extends string>({
           key={o.value}
           className={`choice ${isActive(o.value) ? 'choice--active' : ''}`}
           onClick={() => handleClick(o.value)}
+          aria-pressed={isActive(o.value)}
         >
           {o.label}
         </button>
@@ -236,7 +254,37 @@ export function ChoiceGroup<T extends string>({
 }
 
 /* ------------------------------------------------------------------ */
-/* Switch                                                              */
+/* Segmented control（两态 / 三态等离散选择）                          */
+/* ------------------------------------------------------------------ */
+export function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: ReactNode }[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="segmented" role="radiogroup">
+      {options.map((o) => (
+        <button
+          type="button"
+          key={o.value}
+          role="radio"
+          aria-checked={value === o.value}
+          className={`segmented__item ${value === o.value ? 'segmented__item--active' : ''}`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Switch（仅表示开 / 关）                                             */
 /* ------------------------------------------------------------------ */
 export function Switch({
   checked,
@@ -278,7 +326,7 @@ export function Slider({
 }) {
   return (
     <div>
-      <div className="small muted mb-16" style={{ fontSize: 15, color: 'var(--text)' }}>
+      <div className="small" style={{ fontSize: 15, color: 'var(--jp-text-primary)' }}>
         {format(value)}
       </div>
       <input
@@ -306,7 +354,6 @@ interface ToastItem {
 interface ToastState {
   toasts: ToastItem[];
   push: (message: string, kind?: 'info' | 'error') => void;
-  remove: (id: number) => void;
 }
 
 const useToastStore = create<ToastState>((set) => ({
@@ -318,7 +365,6 @@ const useToastStore = create<ToastState>((set) => ({
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
     }, 3200);
   },
-  remove: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 }));
 
 export function useToast() {
@@ -328,7 +374,7 @@ export function useToast() {
 export function ToastHost() {
   const toasts = useToastStore((s) => s.toasts);
   return (
-    <div className="toast-wrap">
+    <div className="toast-wrap" aria-live="polite">
       {toasts.map((t) => (
         <div key={t.id} className={`toast ${t.kind === 'error' ? 'toast--error' : ''}`}>
           {t.message}
@@ -337,5 +383,3 @@ export function ToastHost() {
     </div>
   );
 }
-
-
