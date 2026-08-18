@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { initDatabase, closeDatabase } from '../../database/database';
+import { chromeCDP } from '../../automation/cdp/ChromeCDPManager';
 import { registerIpc } from './ipc';
 
 const isDev = !app.isPackaged;
@@ -55,6 +56,14 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// 退出前关闭 JobPilot 管理的专用 Chrome（不删除 Profile 数据）。
+app.on('before-quit', (event) => {
+  if (chromeCDP.isActive()) {
+    event.preventDefault();
+    void chromeCDP.closeActive().finally(() => app.quit());
+  }
 });
 
 app.on('quit', () => {

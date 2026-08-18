@@ -144,7 +144,7 @@ export default function Onboarding() {
             />
           </div>
         )}
-        {step === 5 && <PlatformForm value={draft.platforms} onChange={(platforms) => update({ platforms })} />}
+        {step === 5 && <PlatformForm />}
       </div>
 
       <div className="wizard__footer">

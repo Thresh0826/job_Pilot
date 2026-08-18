@@ -1,12 +1,21 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import { IPC, type BootstrapData, type ConnectPlatformResult } from '../../shared/ipc';
-import { settingsSnapshotSchema, type SettingsSnapshot } from '../../shared/settings';
-import type { PlatformType } from '../../shared/enums';
+import { IPC, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
+import {
+  settingsSnapshotSchema,
+  type BossPlatformStatus,
+  type SettingsSnapshot,
+} from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
 import { getDataDir } from '../../database/database';
 import { getRunMode } from '../../database/repositories/settingsRepository';
 import * as settingsService from '../../database/services/settingsService';
 import { importResumeFromPath, pickResume, removeResume } from './services/resumeService';
+import {
+  checkBossConnection,
+  connectBoss,
+  disconnectBoss,
+  getBossStatus,
+} from './services/platformService';
 
 function buildBootstrap(): BootstrapData {
   return {
@@ -14,6 +23,10 @@ function buildBootstrap(): BootstrapData {
     runMode: getRunMode(),
     dataDir: getDataDir(),
   };
+}
+
+function isBoss(raw: unknown): boolean {
+  return raw === 'BOSS';
 }
 
 /** 注册所有 IPC handler。渲染进程只能通过 preload 暴露的 API 调用这些通道。 */
@@ -50,11 +63,20 @@ export function registerIpc(): void {
 
   ipcMain.handle(IPC.RemoveResume, (): boolean => removeResume());
 
-  ipcMain.handle(IPC.ConnectPlatform, (_event, rawPlatform: unknown): ConnectPlatformResult => {
-    const platform: PlatformType =
-      rawPlatform === 'BOSS' || rawPlatform === 'ZHILIAN' || rawPlatform === 'JOB51' || rawPlatform === 'LIEPIN'
-        ? rawPlatform
-        : 'BOSS';
-    return { platform, message: '平台接入将在下一阶段实现。' };
+  ipcMain.handle(IPC.GetPlatformStatus, (): BossPlatformStatus => getBossStatus());
+
+  ipcMain.handle(IPC.ConnectPlatform, async (_event, rawPlatform: unknown): Promise<PlatformActionResult> => {
+    if (!isBoss(rawPlatform)) return { status: 'ERROR', message: '该平台尚未接入。' };
+    return connectBoss();
+  });
+
+  ipcMain.handle(IPC.CheckPlatform, async (_event, rawPlatform: unknown): Promise<PlatformActionResult> => {
+    if (!isBoss(rawPlatform)) return { status: 'ERROR', message: '该平台尚未接入。' };
+    return checkBossConnection();
+  });
+
+  ipcMain.handle(IPC.DisconnectPlatform, async (_event, rawPlatform: unknown): Promise<PlatformActionResult> => {
+    if (!isBoss(rawPlatform)) return { status: 'ERROR', message: '该平台尚未接入。' };
+    return disconnectBoss();
   });
 }

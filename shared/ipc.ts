@@ -1,6 +1,6 @@
 import type { ResumeRecord } from '../core/resume';
-import type { PlatformType, RunMode } from './enums';
-import type { SettingsSnapshot } from './settings';
+import type { PlatformStatus, PlatformType, RunMode } from './enums';
+import type { BossPlatformStatus, SettingsSnapshot } from './settings';
 
 /** 应用启动引导信息。 */
 export interface BootstrapData {
@@ -9,9 +9,9 @@ export interface BootstrapData {
   dataDir: string;
 }
 
-/** 平台连接占位结果。 */
-export interface ConnectPlatformResult {
-  platform: PlatformType;
+/** 平台操作结果（连接 / 检查 / 断开）。 */
+export interface PlatformActionResult {
+  status: PlatformStatus;
   message: string;
 }
 
@@ -24,7 +24,10 @@ export const IPC = {
   PickResume: 'jobpilot:pickResume',
   ImportResume: 'jobpilot:importResume',
   RemoveResume: 'jobpilot:removeResume',
+  GetPlatformStatus: 'jobpilot:getPlatformStatus',
   ConnectPlatform: 'jobpilot:connectPlatform',
+  CheckPlatform: 'jobpilot:checkPlatform',
+  DisconnectPlatform: 'jobpilot:disconnectPlatform',
 } as const;
 
 /**
@@ -39,7 +42,10 @@ export interface JobPilotApi {
   pickResume(): Promise<ResumeRecord | null>;
   importResume(path: string): Promise<ResumeRecord | null>;
   removeResume(): Promise<boolean>;
-  connectPlatform(platform: PlatformType): Promise<ConnectPlatformResult>;
+  getPlatformStatus(): Promise<BossPlatformStatus>;
+  connectPlatform(platform: PlatformType): Promise<PlatformActionResult>;
+  checkPlatform(platform: PlatformType): Promise<PlatformActionResult>;
+  disconnectPlatform(platform: PlatformType): Promise<PlatformActionResult>;
   /** 从拖拽的 File 对象读取绝对路径（依赖 Electron webUtils）。 */
   getPathForFile(file: File): string;
 }

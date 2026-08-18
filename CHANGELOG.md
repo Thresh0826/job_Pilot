@@ -2,6 +2,27 @@
 
 本项目的所有重要变更都会记录在此文件中。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] - 2026-08-18
+
+### BOSS 连接
+
+- BOSS直聘登录连接：真实 Google Chrome + 独立持久化 Profile + Raw CDP（RawCDPClient / ChromeCDPManager）
+- 用户本人扫码 / 短信 / CAPTCHA 完成登录，JobPilot 不自动处理认证
+- 登录状态（Cookie / Session）保存在 JobPilot 独立 Chrome Profile
+- TEST / PRODUCTION Profile 物理隔离，互不影响
+- 登录状态检查（只读：Target.getTargets URL 判断，不导航、不创建页面）
+- 检查连接 / 重新连接 / 断开连接
+- 断开连接：关闭专用 Chrome + 清理当前模式 Profile（带重试）
+- 用户手动关闭 Chrome 后可自动恢复并重新连接
+- 平台状态持久化：status / connected_at / last_checked_at（SQLite 仅存元数据）
+- BOSS 正式链路不再使用 Playwright（Playwright BrowserManager 保留为通用能力）
+- packaged Windows 支持：打包后定位 Chrome、spawn、Raw CDP WebSocket 正常
+
+### 其它
+
+- Raw CDP 开发诊断工具 `scripts/boss-cdp-spike.mjs`（开发脚本，不进入正式业务调用链）
+- 冒烟测试扩展：Chrome 检测 / Profile 隔离 / RawCDP 收发 / 只读检测 / close 清理 / 复用逻辑
+
 ## [0.1.0] - 2026-08-17
 
 ### 新增

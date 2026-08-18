@@ -1,6 +1,10 @@
 import { getDb } from '../database';
-import { DEFAULT_RUN_MODE, type PlatformStatus, type PlatformType, type RunMode } from '../../shared/enums';
-import type { PlatformAccountState } from '../../shared/settings';
+import {
+  DEFAULT_RUN_MODE,
+  type PlatformStatus,
+  type RunMode,
+} from '../../shared/enums';
+import type { BossPlatformStatus, PlatformAccountState } from '../../shared/settings';
 
 function getSetting(key: string): string | null {
   const row = getDb()
@@ -34,25 +38,46 @@ export function setRunMode(mode: RunMode): void {
   setSetting('run_mode', mode);
 }
 
-export function getPlatformState(): PlatformAccountState {
-  const rows = getDb()
-    .prepare<[], { platform: string; status: string }>(
-      'SELECT platform, status FROM platform_accounts ORDER BY id',
+/** 读取 BOSS 平台最近已知状态与时间元数据。 */
+export function getBossPlatformStatus(): BossPlatformStatus {
+  const row = getDb()
+    .prepare<[], { status: string; connected_at: string | null; last_checked_at: string | null }>(
+      "SELECT status, connected_at, last_checked_at FROM platform_accounts WHERE platform = 'BOSS'",
     )
-    .all();
+    .get();
 
-  const boss = rows.find((r) => r.platform === 'BOSS');
   return {
-    boss: (boss?.status as PlatformStatus) ?? 'DISCONNECTED',
+    status: (row?.status as PlatformStatus) ?? 'DISCONNECTED',
+    lastConnectedAt: row?.connected_at ?? null,
+    lastCheckedAt: row?.last_checked_at ?? null,
   };
 }
 
-export function setPlatformStatus(platform: PlatformType, status: PlatformStatus): void {
-  const connectedAt = status === 'CONNECTED' ? new Date().toISOString() : null;
+/**
+ * 持久化 BOSS 最近已知状态。
+ * 仅用于 DISCONNECTED / CONNECTED / EXPIRED / ERROR，CONNECTING 为瞬时状态不落库。
+ */
+export function saveBossPlatformStatus(status: PlatformStatus): void {
+  const now = new Date().toISOString();
+  const existing = getBossPlatformStatus();
+
+  const lastConnectedAt =
+    status === 'CONNECTED'
+      ? existing.lastConnectedAt ?? now
+      : status === 'DISCONNECTED'
+        ? null
+        : existing.lastConnectedAt;
+
   getDb()
-    .prepare<[PlatformType, PlatformStatus, string | null]>(
-      'INSERT INTO platform_accounts (platform, status, connected_at) VALUES (?, ?, ?) ' +
-        'ON CONFLICT(platform) DO UPDATE SET status = excluded.status, connected_at = excluded.connected_at',
+    .prepare<[string, string | null, string | null]>(
+      "INSERT INTO platform_accounts (platform, status, connected_at, last_checked_at) " +
+        "VALUES ('BOSS', ?, ?, ?) ON CONFLICT(platform) DO UPDATE SET " +
+        'status = excluded.status, connected_at = excluded.connected_at, last_checked_at = excluded.last_checked_at',
     )
-    .run(platform, status, connectedAt);
+    .run(status, lastConnectedAt, now);
+}
+
+/** 供设置快照使用：仅返回 boss 最近已知状态。 */
+export function getPlatformState(): PlatformAccountState {
+  return { boss: getBossPlatformStatus().status };
 }

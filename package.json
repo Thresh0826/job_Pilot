@@ -1,7 +1,7 @@
 {
   "name": "jobpilot",
-  "version": "0.1.0",
-  "description": "JobPilot - 本地优先的 AI 求职 Agent（V0.1 桌面应用基础）",
+  "version": "0.2.0",
+  "description": "JobPilot - 本地优先的 AI 求职 Agent（V0.2 BOSS 登录连接）",
   "author": "JobPilot",
   "license": "MIT",
   "private": true,
@@ -17,11 +17,13 @@
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint .",
     "smoke": "electron scripts/smoke-test.cjs",
+    "cdp:spike": "node scripts/boss-cdp-spike.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\" \"database/**/*.ts\" \"core/**/*.ts\" \"platforms/**/*.ts\" \"shared/**/*.ts\"",
     "dist": "npm run build && node scripts/setup-native.cjs && electron-builder"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
+    "playwright-core": "^1.62.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

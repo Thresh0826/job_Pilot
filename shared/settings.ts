@@ -22,6 +22,13 @@ export interface PlatformAccountState {
   boss: PlatformStatus;
 }
 
+/** BOSS 平台账号的最近已知状态与时间元数据。 */
+export interface BossPlatformStatus {
+  status: PlatformStatus;
+  lastConnectedAt: string | null;
+  lastCheckedAt: string | null;
+}
+
 /** 设置 / 首次配置的聚合快照，跨 IPC 传输。 */
 export interface SettingsSnapshot {
   profile: UserProfile;
@@ -34,7 +41,7 @@ export interface SettingsSnapshot {
 }
 
 export const platformAccountStateSchema = z.object({
-  boss: z.enum(['DISCONNECTED', 'CONNECTED', 'COMING_SOON']),
+  boss: z.enum(['DISCONNECTED', 'CONNECTING', 'CONNECTED', 'EXPIRED', 'ERROR', 'COMING_SOON']),
 });
 
 /** 构造一份完整的默认设置，用于首次进入 Onboarding 时的表单初始值。 */

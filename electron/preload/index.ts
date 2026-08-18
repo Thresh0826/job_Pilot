@@ -16,7 +16,10 @@ const IPC = {
   PickResume: 'jobpilot:pickResume',
   ImportResume: 'jobpilot:importResume',
   RemoveResume: 'jobpilot:removeResume',
+  GetPlatformStatus: 'jobpilot:getPlatformStatus',
   ConnectPlatform: 'jobpilot:connectPlatform',
+  CheckPlatform: 'jobpilot:checkPlatform',
+  DisconnectPlatform: 'jobpilot:disconnectPlatform',
 } as const;
 
 const api: JobPilotApi = {
@@ -27,7 +30,10 @@ const api: JobPilotApi = {
   pickResume: () => ipcRenderer.invoke(IPC.PickResume),
   importResume: (filePath: string) => ipcRenderer.invoke(IPC.ImportResume, filePath),
   removeResume: () => ipcRenderer.invoke(IPC.RemoveResume),
+  getPlatformStatus: () => ipcRenderer.invoke(IPC.GetPlatformStatus),
   connectPlatform: (platform: PlatformType) => ipcRenderer.invoke(IPC.ConnectPlatform, platform),
+  checkPlatform: (platform: PlatformType) => ipcRenderer.invoke(IPC.CheckPlatform, platform),
+  disconnectPlatform: (platform: PlatformType) => ipcRenderer.invoke(IPC.DisconnectPlatform, platform),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
 };
 

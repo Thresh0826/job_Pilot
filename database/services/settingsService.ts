@@ -30,9 +30,8 @@ export function saveSettingsSnapshot(snapshot: SettingsSnapshot): SettingsSnapsh
     strategyRepo.saveJobPreferences(snapshot.jobPreferences);
     aiRepo.saveAiPermissions(snapshot.aiPermissions);
     aiRepo.saveNotifications(snapshot.notifications);
-    if (snapshot.platforms.boss === 'CONNECTED' || snapshot.platforms.boss === 'DISCONNECTED') {
-      settingsRepo.setPlatformStatus('BOSS', snapshot.platforms.boss);
-    }
+    // platform_accounts 状态由 platformService（连接/检查/断开）统一管理，
+    // 设置保存不再写入平台状态，避免覆盖真实的连接状态。
   });
   save();
   return getSettingsSnapshot();

@@ -106,9 +106,16 @@ export function runMigrations(db: Database.Database): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       platform TEXT NOT NULL UNIQUE,
       status TEXT NOT NULL DEFAULT 'DISCONNECTED',
-      connected_at TEXT
+      connected_at TEXT,
+      last_checked_at TEXT
     );
   `);
+
+  // V0.2 最小迁移：为已存在的 V0.1 数据库补充 last_checked_at 列。
+  const columns = db.prepare('PRAGMA table_info(platform_accounts)').all() as { name: string }[];
+  if (!columns.some((c) => c.name === 'last_checked_at')) {
+    db.exec('ALTER TABLE platform_accounts ADD COLUMN last_checked_at TEXT');
+  }
 
   seedDefaults(db);
 }

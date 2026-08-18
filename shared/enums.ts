@@ -9,7 +9,18 @@ export type RunMode = 'TEST' | 'PRODUCTION';
 /** 招聘平台标识。 */
 export type PlatformType = 'BOSS' | 'ZHILIAN' | 'JOB51' | 'LIEPIN';
 
-/** 平台连接状态。 */
-export type PlatformStatus = 'DISCONNECTED' | 'CONNECTED' | 'COMING_SOON';
+/**
+ * 平台连接状态。
+ * - DISCONNECTED / CONNECTED / EXPIRED / ERROR：可持久化的「最近已知状态」
+ * - CONNECTING：瞬时状态，仅用于 UI 反馈，不持久化
+ * - COMING_SOON：平台尚未接入
+ */
+export type PlatformStatus =
+  | 'DISCONNECTED'
+  | 'CONNECTING'
+  | 'CONNECTED'
+  | 'EXPIRED'
+  | 'ERROR'
+  | 'COMING_SOON';
 
 export const DEFAULT_RUN_MODE: RunMode = 'TEST';

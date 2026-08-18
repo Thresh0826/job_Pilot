@@ -12,7 +12,6 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "core/**/*.ts",
-    "platforms/**/*.ts",
     "shared/**/*.ts"
   ]
 }

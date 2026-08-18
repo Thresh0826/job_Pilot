@@ -120,9 +120,7 @@ export default function Settings() {
               />
             )}
 
-            {section === 'platform' && (
-              <PlatformForm value={draft.platforms} onChange={(platforms) => update({ platforms })} />
-            )}
+            {section === 'platform' && <PlatformForm />}
 
             {section === 'notification' && (
               <NotificationForm
