@@ -12,9 +12,9 @@ build/
 .env.*
 !.env.example
 
-# local data
-data/
-dev-data/
+# local data (root-level runtime data only)
+/data/
+/dev-data/
 
 # databases
 *.db
@@ -23,16 +23,16 @@ dev-data/
 *.sqlite
 *.sqlite3
 
-# browser automation data
-browser/
-browser-profile/
-browser-data/
+# browser automation data (root-level runtime data only)
+/browser/
+/browser-profile/
+/browser-data/
 
-# user files
-resumes/
+# user files (root-level runtime data only)
+/resumes/
 
-# logs
-logs/
+# logs (root-level runtime data only)
+/logs/
 *.log
 
 # editor / os
