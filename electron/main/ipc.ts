@@ -1,11 +1,12 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import { IPC, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
+import { IPC, bossSearchInputSchema, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
 import {
   settingsSnapshotSchema,
   type BossPlatformStatus,
   type SettingsSnapshot,
 } from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
+import type { JobSearchResult } from '../../core/matching';
 import { getDataDir } from '../../database/database';
 import { getRunMode } from '../../database/repositories/settingsRepository';
 import * as settingsService from '../../database/services/settingsService';
@@ -15,6 +16,7 @@ import {
   connectBoss,
   disconnectBoss,
   getBossStatus,
+  searchBossJobs,
 } from './services/platformService';
 
 function buildBootstrap(): BootstrapData {
@@ -78,5 +80,14 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.DisconnectPlatform, async (_event, rawPlatform: unknown): Promise<PlatformActionResult> => {
     if (!isBoss(rawPlatform)) return { status: 'ERROR', message: '该平台尚未接入。' };
     return disconnectBoss();
+  });
+
+  ipcMain.handle(IPC.SearchBossJobs, async (_event, raw: unknown): Promise<JobSearchResult> => {
+    const parsed = bossSearchInputSchema.safeParse(raw);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? '搜索参数无效';
+      return { status: 'INVALID_RESPONSE', jobs: [], message };
+    }
+    return searchBossJobs(parsed.data);
   });
 }

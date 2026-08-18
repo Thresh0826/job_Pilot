@@ -1,13 +1,6 @@
-import type { Job } from '../../core/matching';
+import type { Job, JobSearchQuery, JobSearchResult } from '../../core/matching';
 import type { Message } from '../../core/messaging';
 import type { PlatformType } from '../../shared/enums';
-
-/** 岗位搜索查询参数。 */
-export interface JobSearchQuery {
-  keywords?: string[];
-  cities?: string[];
-  salaryMin?: number;
-}
 
 export interface JobDetail extends Job {
   description: string;
@@ -32,7 +25,7 @@ export interface SendMessageResult {
 export interface PlatformAdapter {
   readonly platform: PlatformType;
 
-  searchJobs(query: JobSearchQuery): Promise<Job[]>;
+  searchJobs(query: JobSearchQuery): Promise<JobSearchResult>;
   getJobDetail(jobId: string): Promise<JobDetail | null>;
   apply(jobId: string, resumeId: number): Promise<ApplyResult>;
   getMessages(): Promise<Message[]>;

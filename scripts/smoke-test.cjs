@@ -106,7 +106,7 @@ app.whenReady().then(async () => {
     const { ChromeCDPManager, findBossTarget } = require('../dist-electron/automation/cdp/ChromeCDPManager.js');
     const { BossAdapter } = require('../dist-electron/platforms/boss/BossAdapter.js');
     cdpManager = new ChromeCDPManager();
-    const cdpBoss = new BossAdapter(cdpManager);
+    const cdpBoss = new BossAdapter(cdpManager, () => 'TEST');
 
     // 7.1 Chrome executable detection
     let chromePath = '';

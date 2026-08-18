@@ -4,7 +4,7 @@ import { Badge, Button } from './ui';
 import { JobMatchScore } from './JobMatchScore';
 
 export function JobCard({ job, onOpen }: { job: Job; onOpen?: () => void }) {
-  const meta = [job.district ?? job.location, job.education, job.experience].filter(Boolean).join(' · ');
+  const meta = [job.district ?? job.location, job.degree, job.experience].filter(Boolean).join(' · ');
 
   return (
     <div className="job-card">
@@ -16,7 +16,7 @@ export function JobCard({ job, onOpen }: { job: Job; onOpen?: () => void }) {
         {job.matchScore != null ? <JobMatchScore score={job.matchScore} /> : null}
       </div>
 
-      <div className="job-card__salary">¥{job.salary}</div>
+      <div className="job-card__salary">¥{job.salary ?? '面议'}</div>
       <div className="job-card__meta">{meta}</div>
 
       {job.aiSummary ? <div className="job-card__summary">{job.aiSummary}</div> : null}

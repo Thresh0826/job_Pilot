@@ -5,11 +5,12 @@ import {
   getRunMode,
   saveBossPlatformStatus,
 } from '../../../database/repositories/settingsRepository';
+import type { JobSearchQuery, JobSearchResult } from '../../../core/matching';
 import type { PlatformActionResult } from '../../../shared/ipc';
 import type { BossPlatformStatus } from '../../../shared/settings';
 import { logger } from '../logger';
 
-const boss = new BossAdapter(chromeCDP);
+const boss = new BossAdapter(chromeCDP, () => getRunMode());
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,6 +83,17 @@ export async function disconnectBoss(): Promise<PlatformActionResult> {
   saveBossPlatformStatus('DISCONNECTED');
   logger.info('platform', 'disconnect 完成');
   return { status: 'DISCONNECTED', message: '已断开连接，并清理当前模式的登录数据。' };
+}
+
+/** V0.3-A：BOSS 一次搜索 → 第一批真实岗位。 */
+export async function searchBossJobs(input: JobSearchQuery): Promise<JobSearchResult> {
+  logger.info('platform', `searchBossJobs keyword=${input.keyword} city=${input.city}`);
+  try {
+    return await boss.searchJobs(input);
+  } catch (err) {
+    logger.error('platform', `searchBossJobs 失败: ${err instanceof Error ? err.message : String(err)}`);
+    return { status: 'INVALID_RESPONSE', jobs: [], message: '搜索失败，请稍后重试。' };
+  }
 }
 
 /** 将底层异常映射为普通用户可理解的信息；技术细节写入日志。 */
