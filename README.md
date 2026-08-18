@@ -107,7 +107,7 @@ resumes/         # 复制进来的简历文件
 
 ## 运行模式
 
-- **测试模式（TEST）**：当前默认，仅本地模拟数据，禁止任何真实投递 / 发消息动作。
+- **测试模式（TEST）**：当前默认。可用于**读取真实招聘平台数据进行开发和验证**，但**不得执行真实投递、发送 HR 消息等外部写操作**。
 - **正式模式（PRODUCTION）**：未来版本才允许真实平台动作，当前仅预留状态结构。
 
 ## 目录结构
@@ -116,7 +116,7 @@ resumes/         # 复制进来的简历文件
 electron/          Electron 主进程 / preload / IPC
 src/               React 渲染层（pages / components / stores / styles / router）
 core/              领域类型与 Zod 校验（profile / strategy / resume / ai / ...）
-platforms/         招聘平台适配器接口（base）与 BOSS 占位实现（boss）
+platforms/         招聘平台适配器接口（base）与 BOSS 真实集成（boss：Raw CDP 登录 / 搜索）
 database/          SQLite 连接、迁移与仓储层
 automation/        Agent 状态定义（预留）
 shared/            跨进程共享类型与 IPC 契约
