@@ -4,16 +4,24 @@
 
 ## 当前版本
 
-**V0.1** —— 可运行、可保存数据、可打包部署的桌面应用基础。
+**V0.1**（tag：`v0.1.0`）—— 可运行、可保存数据、可打包部署的桌面应用基础。
+
+## 仓库
+
+https://github.com/Thresh0826/job_Pilot
+
+> 注意：该仓库当前为 **Public**；V0.1 规划中建议使用 Private，如介意请到仓库 Settings 改为 Private。
 
 ## 当前实现
 
-- Welcome 欢迎页（现代极简、渐变光晕、轻微动画）
+- "Quiet Intelligence" 前端设计系统（浅暖灰绿、Design Tokens、克制的 Agent 信号语言）
+- Welcome 欢迎页（极简环境光晕、缓慢 ambient 动画）
 - 首次配置 Onboarding 六步向导（基础资料 / 简历 / 求职目标 / 工作偏好 / AI 权限 / 招聘平台）
-- Dashboard 首页 + 找工作 / 沟通 / 投递记录 / 设置 页面（V0.1 使用模拟数据）
+- Dashboard 首页（Agent 状态优先）+ 找工作 / 沟通 / 投递记录 / 设置 页面（V0.1 使用模拟数据）
+- 核心设计组件：AgentStatus / AttentionItem / JobCard / JobMatchScore / AIRecommendation 等
 - SQLite（better-sqlite3）本地持久化，规范化表结构
 - 设置页面可随时修改所有首次配置内容
-- 测试模式 / 正式模式隔离（开发默认测试模式，UI 显示 TEST MODE）
+- 测试模式 / 正式模式隔离（开发默认测试模式，UI 显示测试模式）
 - Electron 安全模型：contextIsolation + sandbox + preload IPC，渲染进程无 Node 能力
 - 简历文件复制到应用数据目录（不依赖源文件原始位置）
 - Windows 安装包构建（electron-builder / NSIS）
@@ -111,7 +119,7 @@ scripts/           原生依赖准备与冒烟测试脚本
   ↓
 Git commit
   ↓
-GitHub Private Repository
+GitHub 仓库（github.com/Thresh0826/job_Pilot）
   ↓
 构建 Windows 安装程序
   ↓
