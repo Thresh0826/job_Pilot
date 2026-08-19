@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
+import type { Job, JobDetailResult } from '../../core/matching';
 import { Button, Input } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
+import { useJobsStore } from '../stores/useJobsStore';
 
 export default function Jobs() {
-  const [keyword, setKeyword] = useState('');
-  const [city, setCity] = useState('');
+  const keyword = useJobsStore((s) => s.keyword);
+  const city = useJobsStore((s) => s.city);
+  const result = useJobsStore((s) => s.result);
+  const setKeyword = useJobsStore((s) => s.setKeyword);
+  const setCity = useJobsStore((s) => s.setCity);
+  const setResult = useJobsStore((s) => s.setResult);
+  const markJobSeen = useJobsStore((s) => s.markJobSeen);
+
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<JobSearchResult | null>(null);
   const [error, setError] = useState('');
 
   const [detailResult, setDetailResult] = useState<JobDetailResult | null>(null);
@@ -38,7 +44,12 @@ export default function Jobs() {
     setDetailResult(null);
     setDetailJob(job);
     try {
-      setDetailResult(await window.api.getBossJobDetail(job));
+      const res = await window.api.getBossJobDetail(job);
+      setDetailResult(res);
+      // C2：详情读取成功后立即在当前页面标记 SEEN（失败不标记，保持 NEW）。
+      if (res.status === 'SUCCESS' && res.detail) {
+        markJobSeen(job.id);
+      }
     } catch (err) {
       setDetailResult({
         status: 'DETAIL_PARSE_FAILED',
@@ -100,6 +111,9 @@ export default function Jobs() {
             <div className="empty__desc" style={{ marginBottom: 8 }}>
               已获取 {result.jobs.length} 个岗位
               {typeof result.batchesLoaded === 'number' ? ` · 加载 ${result.batchesLoaded} 批` : ''}
+              {result.jobs.filter((j) => j.status === 'NEW').length > 0
+                ? ` · 新 ${result.jobs.filter((j) => j.status === 'NEW').length} 个`
+                : ''}
               {result.hasMore === false ? ' · 已无更多岗位' : ''}
             </div>
             <table className="table">
@@ -117,7 +131,14 @@ export default function Jobs() {
               <tbody>
                 {result.jobs.map((job) => (
                   <tr key={job.id}>
-                    <td style={{ fontWeight: 600 }}>{job.title}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {job.title}
+                      {job.status ? (
+                        <span className={`tag tag--status ${job.status === 'NEW' ? 'tag--new' : 'tag--seen'}`}>
+                          {job.status}
+                        </span>
+                      ) : null}
+                    </td>
                     <td>{job.company}</td>
                     <td>{job.salary ? `¥${job.salary}` : '面议'}</td>
                     <td>{job.location}</td>

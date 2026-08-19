@@ -109,6 +109,38 @@ export function runMigrations(db: Database.Database): void {
       connected_at TEXT,
       last_checked_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform TEXT NOT NULL,
+      platform_job_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      company TEXT NOT NULL DEFAULT '',
+      salary TEXT,
+      location TEXT,
+      city TEXT,
+      district TEXT,
+      business_district TEXT,
+      industry TEXT,
+      experience TEXT,
+      degree TEXT,
+      company_size TEXT,
+      company_stage TEXT,
+      job_labels TEXT,
+      skills TEXT,
+      welfare TEXT,
+      recruiter_name TEXT,
+      recruiter_title TEXT,
+      recruiter_active_status TEXT,
+      job_url TEXT,
+      company_url TEXT,
+      source_metadata TEXT,
+      jd_text TEXT,
+      status TEXT NOT NULL DEFAULT 'NEW',
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      UNIQUE (platform, platform_job_id)
+    );
   `);
 
   // V0.2 最小迁移：为已存在的 V0.1 数据库补充 last_checked_at 列。

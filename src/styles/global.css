@@ -736,6 +736,26 @@ button {
   border: 1px solid var(--jp-border);
 }
 
+/* C2：岗位本地状态徽标（NEW 首次发现 / SEEN 已查看详情） */
+.tag--status {
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.tag--new {
+  color: var(--jp-accent);
+  border-color: var(--jp-accent);
+  background: transparent;
+}
+
+.tag--seen {
+  color: var(--jp-text-secondary);
+  border-color: var(--jp-border);
+  background: transparent;
+}
+
 .tag__remove {
   display: inline-flex;
   align-items: center;

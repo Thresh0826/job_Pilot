@@ -57,7 +57,12 @@ export interface Job {
   aiSummary?: string;
   /** 平台侧后续流程所需的非敏感元数据（securityId / lid / encryptJobId / encryptBossId / encryptBrandId 等）。 */
   sourceMetadata?: Record<string, string>;
+  /** C2：岗位在 JobPilot 本地库中的状态（NEW 首次发现 / SEEN 已查看详情）。 */
+  status?: JobStatus;
 }
+
+/** 岗位本地状态（C2：持久化后由本地库维护，平台侧无此概念）。 */
+export type JobStatus = 'NEW' | 'SEEN';
 
 /** 岗位搜索结果状态。 */
 export type JobSearchStatus =

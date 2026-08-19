@@ -8,6 +8,7 @@ import {
 import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../../../core/matching';
 import type { PlatformActionResult } from '../../../shared/ipc';
 import type { BossPlatformStatus } from '../../../shared/settings';
+import { getJobStatuses, saveJobDetailSeen, upsertJobs } from '../../../database/repositories/jobRepository';
 import { logger } from '../logger';
 
 const boss = new BossAdapter(chromeCDP, () => getRunMode());
@@ -85,22 +86,45 @@ export async function disconnectBoss(): Promise<PlatformActionResult> {
   return { status: 'DISCONNECTED', message: '已断开连接，并清理当前模式的登录数据。' };
 }
 
-/** V0.3-A：BOSS 一次搜索 → 第一批真实岗位。 */
+/** V0.3-A/C1：BOSS 搜索（多批捕获）→ 成功后岗位进入本地库（C2 upsert），返回时标注本地状态。 */
 export async function searchBossJobs(input: JobSearchQuery): Promise<JobSearchResult> {
   logger.info('platform', `searchBossJobs keyword=${input.keyword} city=${input.city}`);
   try {
-    return await boss.searchJobs(input);
+    const result = await boss.searchJobs(input);
+    if (result.status === 'SUCCESS' && result.jobs.length > 0) {
+      const summary = upsertJobs(result.jobs);
+      logger.info(
+        'platform',
+        `jobs upserted inserted=${summary.inserted} updated=${summary.updated} skipped=${summary.skipped}`,
+      );
+      const ids = result.jobs.map((j) => j.platformJobId).filter((v): v is string => !!v);
+      const statuses = getJobStatuses('BOSS', ids);
+      result.jobs = result.jobs.map((job) => ({
+        ...job,
+        status: job.platformJobId ? statuses[job.platformJobId] : undefined,
+      }));
+    }
+    return result;
   } catch (err) {
     logger.error('platform', `searchBossJobs 失败: ${err instanceof Error ? err.message : String(err)}`);
     return { status: 'INVALID_RESPONSE', jobs: [], message: '搜索失败，请稍后重试。' };
   }
 }
 
-/** V0.3-B：BOSS 单个岗位详情读取。 */
+/** C2：详情读取成功 → 对应岗位标记 SEEN 并保存 JD 文本；失败不标记（不调用）。 */
+export function persistJobDetailOutcome(job: Job, result: JobDetailResult): void {
+  if (result.status === 'SUCCESS' && result.detail) {
+    saveJobDetailSeen(job.platform, job.platformJobId, result.detail.jdText);
+  }
+}
+
+/** V0.3-B：BOSS 单个岗位详情读取；成功后本地标记 SEEN（C2）。 */
 export async function getBossJobDetail(job: Job): Promise<JobDetailResult> {
   logger.info('platform', `getBossJobDetail job=${job.platformJobId ?? job.jobUrl ?? ''}`);
   try {
-    return await boss.getJobDetail(job);
+    const result = await boss.getJobDetail(job);
+    persistJobDetailOutcome(job, result);
+    return result;
   } catch (err) {
     logger.error('platform', `getBossJobDetail 失败: ${err instanceof Error ? err.message : String(err)}`);
     return { status: 'DETAIL_PARSE_FAILED', detail: null, message: '详情读取失败，请稍后重试。' };
