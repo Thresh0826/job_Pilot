@@ -2,6 +2,52 @@
 
 本项目的所有重要变更都会记录在此文件中。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，版本号遵循 [SemVer](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-08-19
+
+### BOSS 岗位发现（V0.3-A）
+
+- 真实 BOSS 搜索页岗位发现：Network 被动捕获页面自身 joblist 响应（`/wapi/zpgeek/search/joblist.json`）
+- 不主动调用 BOSS joblist API；只消费当前搜索 sessionId 的响应，requestId 单次消费，listener 自动清理
+- BOSS joblist 响应分类：SUCCESS / SECURITY_RESTRICTED / LOGIN_EXPIRED / INVALID_RESPONSE
+- 城市解析（BossCityResolver）与 BOSS→JobPilot 统一 Job Model 映射
+
+### 岗位详情 / JD 后台读取（V0.3-B）
+
+- 独立「详情 tab」后台读取真实岗位详情，不干扰用户当前搜索页
+- JobDetail + BossJobDetail + Mapper + IPC / UI 全链路
+- 详情 tab 复用（不随每次查看创建/关闭），断开连接清理
+
+### 多批岗位发现（V0.3-C1）
+
+- 无限滚动触发页面自身加载，捕获后续批次 joblist 响应（JoblistStream 队列式监听）
+- 单次搜索按 platformJobId 去重；保守默认 maxJobs=50 / maxBatches=4
+- 明确停止条件：hasMore=false / maxJobs / maxBatches / 滚动无新响应 / 总超时 / 安全限制 / 登录失效 / CDP 断开
+
+### 岗位持久化（V0.3-C2）
+
+- jobs 表：唯一键 platform + platformJobId，跨搜索 / 跨重启岗位历史
+- 首次发现 NEW；再次发现更新可变字段与 last_seen_at，first_seen_at 不变，SEEN 不退回 NEW
+- 详情读取成功后标记 SEEN 并保存 JD 文本；失败不标记
+- TEST / PRODUCTION 数据物理隔离，migration 幂等
+
+### 自动搜索计划（V0.3-C3）
+
+- 求职目标持久化（目标岗位 / 相关岗位关键词 / 目标城市），重启保留
+- 自动生成搜索任务并顺序执行，进度（正在搜索 X/N、已发现 总/新）与结果汇总
+- 部分任务失败不中断；登录失效 / 安全验证 / 连接断开 / 未连接 → 停止并明确提示
+- “新岗位”= 本次运行前历史中不存在的岗位；重跑相同计划不重复计新
+
+### Jobs 工作台（V0.3-C4）
+
+- 岗位列表 + 详情区域双栏布局；详情 Loading / Success / Error 明确反馈
+- NEW→SEEN 即时反馈，新岗位计数同步；快速切换岗位时详情与选中岗位对应
+- JD 基础格式整理（换行 / 段落 / 小节标题分段），不改写原文
+- 页面状态（搜索条件 / 列表 / 选中岗位 / 详情 / 计划汇总）在应用运行期间保持
+
+### 已知问题
+
+- JD formatting polish deferred：详情/JD 排版仍存在少量显示细节问题，登记为后续统一 UI/UX 优化项，不影响读取与内容完整性
+
 ## [0.2.0] - 2026-08-18
 
 ### BOSS 连接

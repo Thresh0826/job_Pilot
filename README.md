@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-**V0.2**（tag：`v0.2.0`）—— 桌面应用基础 + BOSS 登录连接（真实 Chrome + Raw CDP）。
+**V0.3**（tag：`v0.3.0`）—— BOSS 岗位发现与 Jobs 工作台（真实 Chrome + Raw CDP）。
 
 ## 仓库
 
@@ -17,7 +17,7 @@ https://github.com/Thresh0826/job_Pilot
 - "Quiet Intelligence" 前端设计系统（浅暖灰绿、Design Tokens、克制的 Agent 信号语言）
 - Welcome 欢迎页（极简环境光晕、缓慢 ambient 动画）
 - 首次配置 Onboarding 六步向导（基础资料 / 简历 / 求职目标 / 工作偏好 / AI 权限 / 招聘平台）
-- Dashboard 首页（Agent 状态优先）+ 找工作 / 沟通 / 投递记录 / 设置 页面（V0.2 使用模拟数据）
+- Dashboard 首页（Agent 状态优先）+ 找工作 / 沟通 / 投递记录 / 设置 页面
 - 核心设计组件：AgentStatus / AttentionItem / JobCard / JobMatchScore / AIRecommendation 等
 - SQLite（better-sqlite3）本地持久化，规范化表结构
 - 设置页面可随时修改所有首次配置内容
@@ -26,6 +26,12 @@ https://github.com/Thresh0826/job_Pilot
 - 简历文件复制到应用数据目录（不依赖源文件原始位置）
 - BOSS直聘登录连接（真实 Google Chrome + 独立 Profile + Raw CDP）
 - 检查连接 / 断开连接 / Profile 清理
+- **BOSS 真实岗位发现（V0.3-A）**：Network 被动捕获页面自身 joblist 响应，不主动调用平台 API
+- **岗位详情 / JD 后台读取（V0.3-B）**：独立详情 tab，不干扰用户当前搜索页
+- **多批岗位发现（V0.3-C1）**：无限滚动加载后续批次、单次搜索去重、明确停止条件
+- **岗位持久化（V0.3-C2）**：跨搜索 / 跨重启岗位历史，NEW / SEEN 状态，first_seen_at / last_seen_at
+- **自动搜索计划（V0.3-C3）**：求职目标 → 自动生成搜索任务 → 顺序执行 → 进度与结果汇总，历史岗位不重复计新
+- **Jobs 工作台（V0.3-C4）**：岗位列表 + 详情区域、详情 Loading / Success / Error、NEW→SEEN 即时反馈、JD 基础格式整理、页面状态保持
 - Windows 安装包构建（electron-builder / NSIS）
 
 ## BOSS 连接
@@ -84,7 +90,7 @@ npm run dist
 构建产物位于 `release/`，文件名为：
 
 ```
-JobPilot-Setup-0.2.0.exe
+JobPilot-Setup-0.3.0.exe
 ```
 
 安装到另一台 Windows 电脑后即可运行，**无需** Node.js / npm / 源码 / 开发环境。

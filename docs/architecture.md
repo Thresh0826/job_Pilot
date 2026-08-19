@@ -120,6 +120,8 @@ SQLite 是 JobPilot 当前主要结构化本地数据库。
 AI 权限
 通知偏好
 招聘平台账号元数据
+岗位历史（jobs：平台岗位唯一键 + NEW/SEEN + first_seen_at / last_seen_at）
+求职目标（job_seek_target：目标岗位 / 相关关键词 / 目标城市，V0.3-C3）
 ```
 
 React 页面不得直接执行 SQL。

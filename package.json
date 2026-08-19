@@ -1,7 +1,7 @@
 {
   "name": "jobpilot",
-  "version": "0.2.0",
-  "description": "JobPilot - 本地优先的 AI 求职 Agent（V0.2 BOSS 登录连接）",
+  "version": "0.3.0",
+  "description": "JobPilot - 本地优先的 AI 求职 Agent（V0.3 BOSS 岗位发现与 Jobs 工作台）",
   "author": "JobPilot",
   "license": "MIT",
   "private": true,
