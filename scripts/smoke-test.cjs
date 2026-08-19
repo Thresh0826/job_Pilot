@@ -156,6 +156,11 @@ app.whenReady().then(async () => {
       statusNoTarget === 'UNKNOWN' && targetsBefore === targetsAfter,
     );
 
+    // 7.7 详情 tab 复用（V0.3-B：不无限建 tab，不自动关闭）
+    const detailT1 = await cdpManager.ensureDetailTarget('TEST');
+    const detailT2 = await cdpManager.ensureDetailTarget('TEST');
+    check('详情 tab 复用（同一 targetId）', detailT1.targetId === detailT2.targetId);
+
     // 7.7 close 清理 + 手动关闭后可恢复
     await cdpManager.close('TEST');
     check('close 后 isRunning false', !cdpManager.isRunning('TEST'));

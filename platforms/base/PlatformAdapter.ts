@@ -1,11 +1,6 @@
-import type { Job, JobSearchQuery, JobSearchResult } from '../../core/matching';
+import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../../core/matching';
 import type { Message } from '../../core/messaging';
 import type { PlatformType } from '../../shared/enums';
-
-export interface JobDetail extends Job {
-  description: string;
-  requirements: string[];
-}
 
 export interface ApplyResult {
   success: boolean;
@@ -26,7 +21,7 @@ export interface PlatformAdapter {
   readonly platform: PlatformType;
 
   searchJobs(query: JobSearchQuery): Promise<JobSearchResult>;
-  getJobDetail(jobId: string): Promise<JobDetail | null>;
+  getJobDetail(job: Job): Promise<JobDetailResult>;
   apply(jobId: string, resumeId: number): Promise<ApplyResult>;
   getMessages(): Promise<Message[]>;
   sendMessage(conversationId: string, content: string): Promise<SendMessageResult>;

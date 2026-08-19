@@ -21,6 +21,7 @@ const IPC = {
   CheckPlatform: 'jobpilot:checkPlatform',
   DisconnectPlatform: 'jobpilot:disconnectPlatform',
   SearchBossJobs: 'jobpilot:searchBossJobs',
+  GetBossJobDetail: 'jobpilot:getBossJobDetail',
 } as const;
 
 const api: JobPilotApi = {
@@ -36,6 +37,7 @@ const api: JobPilotApi = {
   checkPlatform: (platform: PlatformType) => ipcRenderer.invoke(IPC.CheckPlatform, platform),
   disconnectPlatform: (platform: PlatformType) => ipcRenderer.invoke(IPC.DisconnectPlatform, platform),
   searchBossJobs: (query) => ipcRenderer.invoke(IPC.SearchBossJobs, query),
+  getBossJobDetail: (job) => ipcRenderer.invoke(IPC.GetBossJobDetail, job),
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
 };
 

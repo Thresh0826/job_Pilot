@@ -1,11 +1,12 @@
 import type { ChromeCDPManager } from '../../automation/cdp/ChromeCDPManager';
-import type { PlatformAdapter, JobDetail, ApplyResult, SendMessageResult } from '../base/PlatformAdapter';
-import type { JobSearchQuery, JobSearchResult } from '../../core/matching';
+import type { PlatformAdapter, ApplyResult, SendMessageResult } from '../base/PlatformAdapter';
+import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../../core/matching';
 import type { Message } from '../../core/messaging';
 import type { RunMode } from '../../shared/enums';
 import { getBossPlatformStatus } from '../../database/repositories/settingsRepository';
 import { logger } from '../../electron/main/logger';
 import { BossJobDiscovery } from './BossJobDiscovery';
+import { BossJobDetail } from './BossJobDetail';
 
 const NOT_IMPLEMENTED = '该能力尚未实现。';
 
@@ -47,6 +48,7 @@ export class BossAdapter implements PlatformAdapter {
   readonly platform = 'BOSS' as const;
 
   private readonly discovery: BossJobDiscovery;
+  private readonly jobDetail: BossJobDetail;
 
   constructor(
     private readonly cdp: ChromeCDPManager,
@@ -54,6 +56,7 @@ export class BossAdapter implements PlatformAdapter {
     discovery?: BossJobDiscovery,
   ) {
     this.discovery = discovery ?? new BossJobDiscovery(cdp);
+    this.jobDetail = new BossJobDetail(cdp);
   }
 
   /** 连接：确保专用 Chrome + BOSS target（复用或创建），导航一次到登录页。 */
@@ -98,11 +101,23 @@ export class BossAdapter implements PlatformAdapter {
     return this.discovery.searchJobs(runMode, query.keyword, query.city);
   }
 
-  // ---- 未实现能力：明确返回未支持，不伪造成功 ----
-  async getJobDetail(_jobId: string): Promise<JobDetail | null> {
-    throw new Error(NOT_IMPLEMENTED);
+  /** V0.3-B：单个岗位详情读取（独立详情 tab，不干扰搜索 target）。 */
+  async getJobDetail(job: Job): Promise<JobDetailResult> {
+    const runMode = this.runModeProvider();
+
+    const state = await this.checkLoginStatus(runMode);
+    if (state === 'DISCONNECTED') {
+      const prev = getBossPlatformStatus().status;
+      const expired = prev === 'CONNECTED' || prev === 'EXPIRED';
+      return expired
+        ? { status: 'LOGIN_EXPIRED', detail: null, message: '登录已失效，请重新登录后重试。' }
+        : { status: 'NOT_CONNECTED', detail: null, message: '尚未连接 BOSS，请先连接后重试。' };
+    }
+
+    return this.jobDetail.readDetail(runMode, job);
   }
 
+  // ---- 未实现能力：明确返回未支持，不伪造成功 ----
   async apply(_jobId: string, _resumeId: number): Promise<ApplyResult> {
     return { success: false, error: NOT_IMPLEMENTED };
   }

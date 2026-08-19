@@ -5,7 +5,7 @@ import {
   getRunMode,
   saveBossPlatformStatus,
 } from '../../../database/repositories/settingsRepository';
-import type { JobSearchQuery, JobSearchResult } from '../../../core/matching';
+import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../../../core/matching';
 import type { PlatformActionResult } from '../../../shared/ipc';
 import type { BossPlatformStatus } from '../../../shared/settings';
 import { logger } from '../logger';
@@ -93,6 +93,17 @@ export async function searchBossJobs(input: JobSearchQuery): Promise<JobSearchRe
   } catch (err) {
     logger.error('platform', `searchBossJobs 失败: ${err instanceof Error ? err.message : String(err)}`);
     return { status: 'INVALID_RESPONSE', jobs: [], message: '搜索失败，请稍后重试。' };
+  }
+}
+
+/** V0.3-B：BOSS 单个岗位详情读取。 */
+export async function getBossJobDetail(job: Job): Promise<JobDetailResult> {
+  logger.info('platform', `getBossJobDetail job=${job.platformJobId ?? job.jobUrl ?? ''}`);
+  try {
+    return await boss.getJobDetail(job);
+  } catch (err) {
+    logger.error('platform', `getBossJobDetail 失败: ${err instanceof Error ? err.message : String(err)}`);
+    return { status: 'DETAIL_PARSE_FAILED', detail: null, message: '详情读取失败，请稍后重试。' };
   }
 }
 

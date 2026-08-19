@@ -1,12 +1,12 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import { IPC, bossSearchInputSchema, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
+import { IPC, bossSearchInputSchema, jobDetailInputSchema, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
 import {
   settingsSnapshotSchema,
   type BossPlatformStatus,
   type SettingsSnapshot,
 } from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
-import type { JobSearchResult } from '../../core/matching';
+import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
 import { getDataDir } from '../../database/database';
 import { getRunMode } from '../../database/repositories/settingsRepository';
 import * as settingsService from '../../database/services/settingsService';
@@ -15,6 +15,7 @@ import {
   checkBossConnection,
   connectBoss,
   disconnectBoss,
+  getBossJobDetail,
   getBossStatus,
   searchBossJobs,
 } from './services/platformService';
@@ -89,5 +90,14 @@ export function registerIpc(): void {
       return { status: 'INVALID_RESPONSE', jobs: [], message };
     }
     return searchBossJobs(parsed.data);
+  });
+
+  ipcMain.handle(IPC.GetBossJobDetail, async (_event, raw: unknown): Promise<JobDetailResult> => {
+    const parsed = jobDetailInputSchema.safeParse(raw);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? '岗位参数无效';
+      return { status: 'DETAIL_PARSE_FAILED', detail: null, message };
+    }
+    return getBossJobDetail(parsed.data as unknown as Job);
   });
 }

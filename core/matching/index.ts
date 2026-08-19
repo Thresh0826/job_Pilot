@@ -82,3 +82,42 @@ export interface JobSearchResult {
   jobs: Job[];
   message?: string;
 }
+
+/** 岗位详情（V0.3-B：单个岗位真实 JD）。字段只有页面真实存在时才填，缺失为 undefined。 */
+export interface JobDetail {
+  platform: PlatformType;
+  platformJobId?: string;
+  title: string;
+  company?: string;
+  salary?: string;
+  location?: string;
+  experience?: string;
+  degree?: string;
+  /** 真实完整职位描述（关键验收字段）。 */
+  jdText?: string;
+  skills?: string[];
+  jobLabels?: string[];
+  welfare?: string[];
+  recruiterName?: string;
+  recruiterTitle?: string;
+  recruiterActiveStatus?: string;
+  jobUrl?: string;
+  sourceMetadata?: Record<string, string>;
+}
+
+/** 岗位详情读取状态。 */
+export type JobDetailStatus =
+  | 'SUCCESS'
+  | 'NOT_CONNECTED'
+  | 'LOGIN_EXPIRED'
+  | 'SECURITY_RESTRICTED'
+  | 'DETAIL_TIMEOUT'
+  | 'DETAIL_PARSE_FAILED'
+  | 'CDP_DISCONNECTED';
+
+/** 岗位详情结果。 */
+export interface JobDetailResult {
+  status: JobDetailStatus;
+  detail: JobDetail | null;
+  message?: string;
+}

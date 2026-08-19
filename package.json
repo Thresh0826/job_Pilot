@@ -18,6 +18,7 @@
     "lint": "eslint .",
     "smoke": "electron scripts/smoke-test.cjs",
     "test:job-discovery": "electron scripts/job-discovery-test.cjs",
+    "test:job-detail": "electron scripts/job-detail-test.cjs",
     "cdp:spike": "node scripts/boss-cdp-spike.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\" \"database/**/*.ts\" \"core/**/*.ts\" \"platforms/**/*.ts\" \"shared/**/*.ts\"",
     "dist": "npm run build && node scripts/setup-native.cjs && electron-builder"

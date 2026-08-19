@@ -20,6 +20,8 @@ interface ChromeInstance {
   profileDir: string;
   runMode: RunMode;
   client: RawCDPClient | null;
+  /** 受管的详情 tab（复用，不随每次查看创建/关闭）。 */
+  detailTarget: { targetId: string; sessionId: string } | null;
 }
 
 function processAlive(pid: number): boolean {
@@ -65,8 +67,7 @@ async function getVersion(port: number): Promise<{ webSocketDebuggerUrl: string 
 }
 
 /** 查找命令行中包含指定 profile 的 chrome.exe 进程（用于识别并复用本模式专用 Chrome）。 */
-function findRunningChrome(profileDir: string): { pid: number; port: number } | null {
-  try {
+function findRunningChrome(profileDir: string): { pid: number; port: number } | null {  try {
     const safeProfile = profileDir.replace(/'/g, "''");
     const ps =
       `$p='${safeProfile}'; Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" ` +
@@ -88,12 +89,26 @@ function findRunningChrome(profileDir: string): { pid: number; port: number } | 
   }
 }
 
-/** 关闭浏览器后等待文件句柄释放，再删除目录（初始等待 + 长重试）。 */
+/** 强制终止所有使用指定 profile 的 chrome.exe 进程（仅限本模式专用 Chrome）。 */
+function killChromeWithProfile(profileDir: string): void {
+  try {
+    const safe = profileDir.replace(/'/g, "''");
+    const ps =
+      `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" ` +
+      `| Where-Object { $_.CommandLine -and $_.CommandLine.Contains('${safe}') } ` +
+      `| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+    execFileSync('powershell', ['-NoProfile', '-Command', ps], { stdio: 'ignore', timeout: 10_000 });
+  } catch {
+    // 忽略
+  }
+}
+
+/** 删除 Chrome profile：先重试 fs.rmSync；失败时用 takeown+icacls+rmdir 处理受限 ACL 目录。 */
 async function removeDirWithRetry(dir: string): Promise<void> {
   await sleep(1000);
 
   let lastError: unknown;
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 5; i++) {
     try {
       fs.rmSync(dir, { recursive: true, force: true });
       return;
@@ -102,7 +117,19 @@ async function removeDirWithRetry(dir: string): Promise<void> {
       await sleep(500);
     }
   }
-  throw lastError;
+
+  // Chrome 组件更新目录（ActorSafetyLists / Crashpad 等）带受限 ACL，需先重置权限再删除。
+  try {
+    execFileSync('takeown', ['/f', dir, '/r', '/d', 'y'], { stdio: 'ignore', timeout: 60_000 });
+    execFileSync('icacls', [dir, '/reset', '/t', '/c', '/q'], { stdio: 'ignore', timeout: 60_000 });
+    execFileSync('cmd', ['/c', `rmdir /s /q "${dir}"`], { stdio: 'ignore', timeout: 60_000 });
+  } catch {
+    throw lastError;
+  }
+
+  if (fs.existsSync(dir)) {
+    throw lastError;
+  }
 }
 
 /**
@@ -162,7 +189,14 @@ export class ChromeCDPManager {
 
     const leftover = findRunningChrome(profileDir);
     if (leftover) {
-      this.instance = { pid: leftover.pid, port: leftover.port, profileDir, runMode, client: null };
+      this.instance = {
+        pid: leftover.pid,
+        port: leftover.port,
+        profileDir,
+        runMode,
+        client: null,
+        detailTarget: null,
+      };
       logger.info('chrome', `复用已有 Chrome pid=${leftover.pid} port=${leftover.port}`);
       return this.instance;
     }
@@ -184,7 +218,7 @@ export class ChromeCDPManager {
     const pid = child.pid;
     if (!pid) throw new Error('Chrome 启动失败（未取得 pid）');
 
-    const inst: ChromeInstance = { pid, port, profileDir, runMode, client: null };
+    const inst: ChromeInstance = { pid, port, profileDir, runMode, client: null, detailTarget: null };
     this.instance = inst;
     child.on('exit', () => {
       if (this.instance?.pid === pid) {
@@ -255,6 +289,43 @@ export class ChromeCDPManager {
     logger.info('cdp', `navigate ${url}`);
   }
 
+  /**
+   * 确保受管的「详情 tab」存在（首次创建，后续复用；不自动关闭，避免每次查看闪开闪关）。
+   * 独立于搜索 target，不干扰搜索结果页。
+   */
+  async ensureDetailTarget(runMode: RunMode): Promise<{ targetId: string; sessionId: string }> {
+    const inst = await this.ensureChrome(runMode);
+    const client = await this.connect(runMode);
+
+    if (inst.detailTarget && (await this.isTargetAlive(client, inst.detailTarget.targetId))) {
+      return inst.detailTarget;
+    }
+
+    const created = (await client.send('Target.createTarget', {
+      url: 'about:blank',
+      newWindow: false,
+    })) as { targetId: string };
+    const attached = (await client.send('Target.attachToTarget', {
+      targetId: created.targetId,
+      flatten: true,
+    })) as { sessionId: string };
+
+    inst.detailTarget = { targetId: created.targetId, sessionId: attached.sessionId };
+    logger.info('cdp', `detail target created ${created.targetId}`);
+    return inst.detailTarget;
+  }
+
+  private async isTargetAlive(client: RawCDPClient, targetId: string): Promise<boolean> {
+    try {
+      const res = (await client.send('Target.getTargets')) as {
+        targetInfos?: { targetId: string }[];
+      };
+      return (res.targetInfos ?? []).some((t) => t.targetId === targetId);
+    } catch {
+      return false;
+    }
+  }
+
   /** 关闭当前模式的专用 Chrome（只关闭本模式实例，不碰用户普通 Chrome）。 */
   async close(runMode: RunMode): Promise<void> {
     const inst = this.instance;
@@ -269,12 +340,18 @@ export class ChromeCDPManager {
 
     if (processAlive(inst.pid)) {
       try {
-        execFileSync('taskkill', ['/pid', String(inst.pid), '/F'], { stdio: 'ignore' });
+        // /T 一并终止渲染子进程，避免残留进程占用 Profile 文件。
+        // 枚举时子进程已自行退出会报错，但根进程已被终止，忽略该错误。
+        execFileSync('taskkill', ['/pid', String(inst.pid), '/T', '/F'], { stdio: 'ignore' });
         logger.info('chrome', `closed pid=${inst.pid}`);
       } catch (err) {
-        logger.error('chrome', `close 失败: ${err instanceof Error ? err.message : String(err)}`);
+        if (processAlive(inst.pid)) {
+          logger.error('chrome', `close 失败: ${err instanceof Error ? err.message : String(err)}`);
+        }
       }
     }
+    // 兜底：终止任何仍持有本 profile 的 chrome 进程（浏览器或残留渲染子进程）。
+    killChromeWithProfile(inst.profileDir);
   }
 
   async closeActive(): Promise<void> {

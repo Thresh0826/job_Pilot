@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ResumeRecord } from '../core/resume';
-import type { JobSearchQuery, JobSearchResult } from '../core/matching';
+import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../core/matching';
 import type { PlatformStatus, PlatformType, RunMode } from './enums';
 import type { BossPlatformStatus, SettingsSnapshot } from './settings';
 
@@ -31,6 +31,7 @@ export const IPC = {
   CheckPlatform: 'jobpilot:checkPlatform',
   DisconnectPlatform: 'jobpilot:disconnectPlatform',
   SearchBossJobs: 'jobpilot:searchBossJobs',
+  GetBossJobDetail: 'jobpilot:getBossJobDetail',
 } as const;
 
 /** 岗位搜索 IPC 输入校验。 */
@@ -38,6 +39,16 @@ export const bossSearchInputSchema = z.object({
   keyword: z.string().min(1, '搜索关键词不能为空'),
   city: z.string().min(1, '城市不能为空'),
 });
+
+/** 岗位详情 IPC 输入校验（保留 Job 其余字段供详情读取使用）。 */
+export const jobDetailInputSchema = z
+  .object({
+    platform: z.string(),
+    platformJobId: z.string().optional(),
+    jobUrl: z.string().optional(),
+  })
+  .passthrough()
+  .refine((v) => v.platformJobId || v.jobUrl, { message: '缺少岗位标识' });
 
 /**
  * preload 通过 contextBridge 暴露给渲染进程的能力。
@@ -56,6 +67,7 @@ export interface JobPilotApi {
   checkPlatform(platform: PlatformType): Promise<PlatformActionResult>;
   disconnectPlatform(platform: PlatformType): Promise<PlatformActionResult>;
   searchBossJobs(query: JobSearchQuery): Promise<JobSearchResult>;
+  getBossJobDetail(job: Job): Promise<JobDetailResult>;
   /** 从拖拽的 File 对象读取绝对路径（依赖 Electron webUtils）。 */
   getPathForFile(file: File): string;
 }
