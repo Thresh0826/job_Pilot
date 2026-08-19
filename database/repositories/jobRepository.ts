@@ -191,3 +191,11 @@ export function getJobRow(platform: string, platformJobId: string): JobRow | und
     )
     .get(platform, platformJobId);
 }
+
+/** 读取平台全部已知岗位 ID（C3：用于判定“本次计划运行前是否已发现”，与 NEW/SEEN 视图状态无关）。 */
+export function getAllPlatformJobIds(platform: string): Set<string> {
+  const rows = getDb()
+    .prepare<[string], { platform_job_id: string }>('SELECT platform_job_id FROM jobs WHERE platform = ?')
+    .all(platform);
+  return new Set(rows.map((r) => r.platform_job_id));
+}

@@ -22,6 +22,11 @@ const IPC = {
   DisconnectPlatform: 'jobpilot:disconnectPlatform',
   SearchBossJobs: 'jobpilot:searchBossJobs',
   GetBossJobDetail: 'jobpilot:getBossJobDetail',
+  GetJobTarget: 'jobpilot:getJobTarget',
+  SaveJobTarget: 'jobpilot:saveJobTarget',
+  GetSearchPlan: 'jobpilot:getSearchPlan',
+  RunSearchPlan: 'jobpilot:runSearchPlan',
+  SearchPlanProgress: 'jobpilot:searchPlanProgress',
 } as const;
 
 const api: JobPilotApi = {
@@ -38,6 +43,15 @@ const api: JobPilotApi = {
   disconnectPlatform: (platform: PlatformType) => ipcRenderer.invoke(IPC.DisconnectPlatform, platform),
   searchBossJobs: (query) => ipcRenderer.invoke(IPC.SearchBossJobs, query),
   getBossJobDetail: (job) => ipcRenderer.invoke(IPC.GetBossJobDetail, job),
+  getJobTarget: () => ipcRenderer.invoke(IPC.GetJobTarget),
+  saveJobTarget: (target) => ipcRenderer.invoke(IPC.SaveJobTarget, target),
+  getSearchPlan: () => ipcRenderer.invoke(IPC.GetSearchPlan),
+  runSearchPlan: () => ipcRenderer.invoke(IPC.RunSearchPlan),
+  onSearchPlanProgress: (cb) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => cb(progress as never);
+    ipcRenderer.on(IPC.SearchPlanProgress, listener);
+    return () => ipcRenderer.removeListener(IPC.SearchPlanProgress, listener);
+  },
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
 };
 

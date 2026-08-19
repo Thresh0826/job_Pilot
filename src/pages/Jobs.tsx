@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Job, JobDetailResult } from '../../core/matching';
+import type { JobTarget } from '../../core/searchPlan';
 import { Button, Input } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
 import { useJobsStore } from '../stores/useJobsStore';
@@ -13,6 +14,21 @@ export default function Jobs() {
   const setResult = useJobsStore((s) => s.setResult);
   const markJobSeen = useJobsStore((s) => s.markJobSeen);
 
+  const planTasks = useJobsStore((s) => s.planTasks);
+  const planProgress = useJobsStore((s) => s.planProgress);
+  const planResult = useJobsStore((s) => s.planResult);
+  const runningPlan = useJobsStore((s) => s.runningPlan);
+  const setPlanTasks = useJobsStore((s) => s.setPlanTasks);
+  const setPlanProgress = useJobsStore((s) => s.setPlanProgress);
+  const setPlanResult = useJobsStore((s) => s.setPlanResult);
+  const setRunningPlan = useJobsStore((s) => s.setRunningPlan);
+
+  const [targetJob, setTargetJob] = useState('');
+  const [relatedText, setRelatedText] = useState('');
+  const [citiesText, setCitiesText] = useState('');
+  const [targetMsg, setTargetMsg] = useState('');
+  const [targetError, setTargetError] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,6 +37,82 @@ export default function Jobs() {
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const canSearch = keyword.trim().length > 0 && city.trim().length > 0;
+
+  // C3：进入页面时回填已保存的求职目标、生成搜索计划并订阅进度。
+  useEffect(() => {
+    let alive = true;
+    void window.api
+      .getJobTarget()
+      .then((t) => {
+        if (!alive || !t) return;
+        setTargetJob(t.targetJob);
+        setRelatedText(t.relatedKeywords.join('，'));
+        setCitiesText(t.targetCities.join('，'));
+      })
+      .catch(() => {});
+    void window.api
+      .getSearchPlan()
+      .then((tasks) => {
+        if (alive) setPlanTasks(tasks);
+      })
+      .catch(() => {});
+    const off = window.api.onSearchPlanProgress((p) => setPlanProgress(p));
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [setPlanTasks, setPlanProgress]);
+
+  const splitList = (text: string): string[] =>
+    text
+      .split(/[,，、\s]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+  const saveTarget = async () => {
+    setTargetMsg('');
+    setTargetError('');
+    const target: JobTarget = {
+      targetJob: targetJob.trim(),
+      relatedKeywords: splitList(relatedText),
+      targetCities: splitList(citiesText),
+    };
+    try {
+      await window.api.saveJobTarget(target);
+      setPlanTasks(await window.api.getSearchPlan());
+      setTargetMsg('求职目标已保存');
+    } catch (err) {
+      setTargetError(err instanceof Error ? err.message : '保存失败');
+    }
+  };
+
+  const startPlan = async () => {
+    if (planTasks.length === 0 || runningPlan) return;
+    setRunningPlan(true);
+    setPlanProgress(null);
+    setPlanResult(null);
+    try {
+      setPlanResult(await window.api.runSearchPlan());
+    } catch (err) {
+      setPlanResult({
+        status: 'STOPPED',
+        total: planTasks.length,
+        succeeded: 0,
+        failed: 1,
+        discovered: 0,
+        newCount: 0,
+        seenCount: 0,
+        failures: [],
+        stopReason: {
+          task: planTasks[0] ?? { keyword: '', city: '' },
+          status: 'INVALID_RESPONSE',
+          message: err instanceof Error ? err.message : '自动搜索异常',
+        },
+      });
+    } finally {
+      setRunningPlan(false);
+    }
+  };
 
   const search = async () => {
     if (!canSearch) return;
@@ -63,7 +155,112 @@ export default function Jobs() {
 
   return (
     <div className="page">
-      <PageHeader title="找工作" desc="真实搜索 BOSS 岗位（V0.3-A/B，需先连接 BOSS）。" />
+      <PageHeader title="找工作" desc="自动搜索计划 + 手动搜索（V0.3-C3，需先连接 BOSS）。" />
+
+      <div className="card mb-24">
+        <h3 className="section-title" style={{ marginTop: 0 }}>
+          求职目标
+        </h3>
+        <Input
+          value={targetJob}
+          placeholder="目标岗位，如 网络测试工程师"
+          onChange={(e) => setTargetJob(e.target.value)}
+        />
+        <div className="mt-8">
+          <Input
+            value={relatedText}
+            placeholder="相关岗位，逗号分隔，如 网卡测试工程师，网络工程师"
+            onChange={(e) => setRelatedText(e.target.value)}
+          />
+        </div>
+        <div className="mt-8">
+          <Input
+            value={citiesText}
+            placeholder="目标城市，逗号分隔，如 无锡，苏州"
+            onChange={(e) => setCitiesText(e.target.value)}
+          />
+        </div>
+        <div className="row mt-8" style={{ justifyContent: 'space-between' }}>
+          <Button variant="ghost" onClick={() => void saveTarget()}>
+            保存求职目标
+          </Button>
+          {targetMsg ? <span className="small muted">{targetMsg}</span> : null}
+        </div>
+        {targetError ? (
+          <div className="small" style={{ color: 'var(--jp-danger)', marginTop: 6 }}>
+            {targetError}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="card mb-24">
+        <h3 className="section-title" style={{ marginTop: 0 }}>
+          本次搜索计划
+        </h3>
+        {planTasks.length === 0 ? (
+          <div className="empty__desc">先保存求职目标，将自动生成搜索计划。</div>
+        ) : (
+          <>
+            <ol className="plan-list">
+              {planTasks.map((t, i) => (
+                <li key={`${t.keyword}-${t.city}-${i}`}>
+                  {t.keyword} · {t.city}
+                </li>
+              ))}
+            </ol>
+            <div className="small muted mt-8">共 {planTasks.length} 个搜索任务</div>
+            <div className="mt-8">
+              <Button disabled={runningPlan || planTasks.length === 0} onClick={() => void startPlan()}>
+                {runningPlan ? '搜索中…' : '开始搜索'}
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {planProgress ? (
+        <div className="card mb-24">
+          <div className="empty__title" style={{ marginBottom: 6 }}>
+            正在搜索 {planProgress.index} / {planProgress.total}
+          </div>
+          <div className="empty__desc">
+            {planProgress.task.keyword} · {planProgress.task.city}
+          </div>
+          <div className="empty__desc mt-8">
+            已发现：总岗位 {planProgress.discoveredTotal} · 新岗位 {planProgress.newCount}
+          </div>
+        </div>
+      ) : null}
+
+      {planResult ? (
+        <div className="card mb-24">
+          <div className="empty__title" style={{ marginBottom: 6 }}>
+            {planResult.status === 'STOPPED' ? '自动搜索已停止' : '本次自动搜索完成'}
+          </div>
+          <div className="empty__desc">
+            执行任务：{planResult.total} · 成功：{planResult.succeeded} · 失败：{planResult.failed}
+            <br />
+            发现岗位：{planResult.discovered} · 新岗位：{planResult.newCount} · 已见岗位：
+            {planResult.seenCount}
+          </div>
+          {planResult.stopReason ? (
+            <div className="empty__desc mt-8" style={{ color: 'var(--jp-danger)' }}>
+              已停止：{planResult.stopReason.task.keyword} · {planResult.stopReason.task.city} —{' '}
+              {planResult.stopReason.message ?? planResult.stopReason.status}
+            </div>
+          ) : null}
+          {planResult.failures.length > 0 ? (
+            <div className="empty__desc mt-8">
+              失败任务：
+              {planResult.failures.map((f, i) => (
+                <div key={i}>
+                  {f.task.keyword} · {f.task.city} — {f.message ?? f.status}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="card mb-24">
         <div className="row">

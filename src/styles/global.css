@@ -756,6 +756,14 @@ button {
   background: transparent;
 }
 
+/* C3：搜索计划任务列表 */
+.plan-list {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.9;
+  color: var(--jp-text-primary);
+}
+
 .tag__remove {
   display: inline-flex;
   align-items: center;

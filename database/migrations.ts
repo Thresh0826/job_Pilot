@@ -141,6 +141,14 @@ export function runMigrations(db: Database.Database): void {
       last_seen_at TEXT NOT NULL,
       UNIQUE (platform, platform_job_id)
     );
+
+    CREATE TABLE IF NOT EXISTS job_seek_target (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      target_job TEXT NOT NULL DEFAULT '',
+      related_keywords TEXT NOT NULL DEFAULT '',
+      target_cities TEXT NOT NULL DEFAULT '',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // V0.2 最小迁移：为已存在的 V0.1 数据库补充 last_checked_at 列。

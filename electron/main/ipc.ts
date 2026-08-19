@@ -1,5 +1,5 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import { IPC, bossSearchInputSchema, jobDetailInputSchema, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
+import { IPC, bossSearchInputSchema, jobDetailInputSchema, jobTargetSchema, type BootstrapData, type PlatformActionResult } from '../../shared/ipc';
 import {
   settingsSnapshotSchema,
   type BossPlatformStatus,
@@ -7,6 +7,7 @@ import {
 } from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
 import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
+import type { JobTarget, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 import { getDataDir } from '../../database/database';
 import { getRunMode } from '../../database/repositories/settingsRepository';
 import * as settingsService from '../../database/services/settingsService';
@@ -19,6 +20,7 @@ import {
   getBossStatus,
   searchBossJobs,
 } from './services/platformService';
+import { loadJobTarget, loadSearchPlan, persistJobTarget, runSearchPlan } from './services/searchPlanService';
 
 function buildBootstrap(): BootstrapData {
   return {
@@ -99,5 +101,55 @@ export function registerIpc(): void {
       return { status: 'DETAIL_PARSE_FAILED', detail: null, message };
     }
     return getBossJobDetail(parsed.data as unknown as Job);
+  });
+
+  ipcMain.handle(IPC.GetJobTarget, (): JobTarget | null => loadJobTarget());
+
+  ipcMain.handle(IPC.SaveJobTarget, (_event, raw: unknown): JobTarget => {
+    const parsed = jobTargetSchema.safeParse(raw);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? '求职目标无效';
+      throw new Error(`求职目标校验失败：${message}`);
+    }
+    return persistJobTarget(parsed.data);
+  });
+
+  ipcMain.handle(IPC.GetSearchPlan, (): SearchTask[] => loadSearchPlan());
+
+  ipcMain.handle(IPC.RunSearchPlan, async (event): Promise<SearchPlanResult> => {
+    const tasks = loadSearchPlan();
+    if (tasks.length === 0) {
+      return {
+        status: 'COMPLETED',
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        discovered: 0,
+        newCount: 0,
+        seenCount: 0,
+        failures: [],
+      };
+    }
+    const sender = event.sender;
+    try {
+      return await runSearchPlan(tasks, {
+        onProgress: (progress) => {
+          if (!sender.isDestroyed()) sender.send(IPC.SearchPlanProgress, progress);
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        status: 'STOPPED',
+        total: tasks.length,
+        succeeded: 0,
+        failed: 1,
+        discovered: 0,
+        newCount: 0,
+        seenCount: 0,
+        failures: [{ task: tasks[0], status: 'INVALID_RESPONSE', message: `自动搜索异常：${message}` }],
+        stopReason: { task: tasks[0], status: 'INVALID_RESPONSE', message: `自动搜索异常：${message}` },
+      };
+    }
   });
 }
