@@ -3,6 +3,7 @@ import type { Job } from '../../core/matching';
 import type { JobTarget } from '../../core/searchPlan';
 import { Button, Input } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
+import { JobDecisionPanel } from '../components/JobDecisionPanel';
 import { useJobsStore } from '../stores/useJobsStore';
 import { formatJdText } from '../../core/jdFormat';
 
@@ -433,6 +434,14 @@ export default function Jobs() {
 
                 <h4 className="jd-section-title">职位描述</h4>
                 <p className="jd-text">{formatJdText(detail.jdText ?? '（无职位描述）')}</p>
+
+                {detail.platformJobId ? (
+                  <JobDecisionPanel
+                    platform={detail.platform}
+                    platformJobId={detail.platformJobId}
+                    disabledReason={detail.jdText ? undefined : '该岗位没有完整 JD，无法分析。'}
+                  />
+                ) : null}
 
                 {detail.jobLabels && detail.jobLabels.length > 0 ? (
                   <>

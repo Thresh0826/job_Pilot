@@ -161,6 +161,30 @@ export function runMigrations(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS job_decision_rules (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      rules_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS job_decisions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform TEXT NOT NULL,
+      platform_job_id TEXT NOT NULL,
+      verdict TEXT NOT NULL,
+      score INTEGER NOT NULL DEFAULT 0,
+      confidence TEXT NOT NULL DEFAULT 'MEDIUM',
+      matches_json TEXT NOT NULL DEFAULT '[]',
+      risks_json TEXT NOT NULL DEFAULT '[]',
+      unknowns_json TEXT NOT NULL DEFAULT '[]',
+      rule_violations_json TEXT NOT NULL DEFAULT '[]',
+      reason TEXT NOT NULL DEFAULT '',
+      context_hash TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (platform, platform_job_id)
+    );
   `);
 
   // V0.4-A 增量迁移：为已存在的 candidate_profiles 表补充 parse_warnings 列。

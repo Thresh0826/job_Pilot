@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ResumeRecord } from '../core/resume';
 import type { CandidateProfile, CandidateSnapshot } from '../core/candidate';
+import type { DecisionRules, JobDecisionView } from '../core/decision';
 import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../core/matching';
 import type {
   JobTarget,
@@ -48,6 +49,10 @@ export const IPC = {
   GetSearchPlan: 'jobpilot:getSearchPlan',
   RunSearchPlan: 'jobpilot:runSearchPlan',
   SearchPlanProgress: 'jobpilot:searchPlanProgress',
+  GetDecisionRules: 'jobpilot:getDecisionRules',
+  SaveDecisionRules: 'jobpilot:saveDecisionRules',
+  GetJobDecision: 'jobpilot:getJobDecision',
+  AnalyzeJobDecision: 'jobpilot:analyzeJobDecision',
 } as const;
 
 /** 岗位搜索 IPC 输入校验。 */
@@ -107,6 +112,13 @@ export interface JobPilotApi {
   runSearchPlan(): Promise<SearchPlanResult>;
   /** 订阅搜索计划进度；返回取消订阅函数。 */
   onSearchPlanProgress(cb: (progress: SearchPlanProgress) => void): () => void;
+  /** V0.4-B 岗位决策。 */
+  getDecisionRules(): Promise<DecisionRules>;
+  saveDecisionRules(rules: DecisionRules): Promise<DecisionRules>;
+  /** 读取已有决策结果（含过期状态，不重新分析）。 */
+  getJobDecision(platform: string, platformJobId: string): Promise<JobDecisionView>;
+  /** 分析 / 重新分析岗位（覆盖旧结果）。 */
+  analyzeJobDecision(platform: string, platformJobId: string): Promise<JobDecisionView>;
   /** 从拖拽的 File 对象读取绝对路径（依赖 Electron webUtils）。 */
   getPathForFile(file: File): string;
 }

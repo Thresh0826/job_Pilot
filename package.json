@@ -26,6 +26,8 @@
     "test:candidate-parser": "node scripts/candidate-parser-test.cjs",
     "test:candidate-profile": "electron scripts/candidate-profile-test.cjs",
     "test:candidate-real-resume": "electron scripts/candidate-real-resume-test.cjs",
+    "test:decision-engine": "node scripts/decision-engine-test.cjs",
+    "test:decision-persist": "electron scripts/decision-persist-test.cjs",
     "cdp:spike": "node scripts/boss-cdp-spike.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\" \"database/**/*.ts\" \"core/**/*.ts\" \"platforms/**/*.ts\" \"shared/**/*.ts\"",
     "dist": "npm run build && node scripts/setup-native.cjs && electron-builder"

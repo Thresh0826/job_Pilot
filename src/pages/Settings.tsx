@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Bell,
   Bot,
+  Gavel,
   Plug,
   Settings as SettingsIcon,
   SlidersHorizontal,
@@ -20,12 +21,14 @@ import { PreferencesForm } from '../components/forms/PreferencesForm';
 import { AiPermissionsForm } from '../components/forms/AiPermissionsForm';
 import { NotificationForm } from '../components/forms/NotificationForm';
 import { PlatformForm } from '../components/forms/PlatformForm';
+import { DecisionRulesForm } from '../components/forms/DecisionRulesForm';
 
-type SectionId = 'profile' | 'target' | 'preference' | 'ai' | 'platform' | 'notification' | 'app';
+type SectionId = 'profile' | 'target' | 'decision' | 'preference' | 'ai' | 'platform' | 'notification' | 'app';
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: 'profile', label: '个人资料', icon: User },
   { id: 'target', label: '求职目标', icon: Target },
+  { id: 'decision', label: '求职规则', icon: Gavel },
   { id: 'preference', label: '工作偏好', icon: SlidersHorizontal },
   { id: 'ai', label: 'AI 权限', icon: Bot },
   { id: 'platform', label: '招聘平台', icon: Plug },
@@ -104,6 +107,18 @@ export default function Settings() {
 
             {section === 'target' && (
               <TargetForm value={draft.jobTarget} onChange={(jobTarget) => update({ jobTarget })} />
+            )}
+
+            {section === 'decision' && (
+              <div>
+                <h2 className="section-title" style={{ margin: '0 0 16px' }}>
+                  求职规则
+                </h2>
+                <div className="small muted" style={{ marginBottom: 24 }}>
+                  JobPilot 判断岗位时使用的硬性条件：你的明确规则优先级高于 AI 判断。
+                </div>
+                <DecisionRulesForm />
+              </div>
             )}
 
             {section === 'preference' && (

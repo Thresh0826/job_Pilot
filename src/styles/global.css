@@ -1885,6 +1885,109 @@ button {
 }
 
 /* ------------------------------------------------------------------
+   V0.4-B 岗位决策（JobPilot 决策模块）
+   ------------------------------------------------------------------ */
+.decision {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--jp-border);
+}
+
+.decision__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--jp-text-primary);
+  margin-bottom: 8px;
+}
+
+.decision__result {
+  border-radius: var(--jp-radius-md);
+  border: 1px solid var(--jp-border);
+  padding: 14px 16px;
+}
+
+.decision__result--auto_apply {
+  background: linear-gradient(180deg, var(--jp-agent-soft), #ffffff 70%);
+  border-color: rgb(53 163 111 / 25%);
+}
+
+.decision__result--review {
+  background: var(--jp-attention-soft);
+  border-color: rgb(217 148 50 / 30%);
+}
+
+.decision__result--skip {
+  background: var(--jp-bg-soft);
+  border-color: var(--jp-border);
+}
+
+.decision__verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.decision__reason {
+  font-size: 13px;
+  color: var(--jp-text-primary);
+  line-height: 1.6;
+}
+
+.decision__stale {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: var(--jp-radius-sm);
+  background: var(--jp-attention-soft);
+  border: 1px solid rgb(217 148 50 / 25%);
+  font-size: 12px;
+  color: var(--jp-attention);
+}
+
+.decision__actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+}
+
+.decision__detail {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--jp-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.decision__section-title {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.decision__section-title--ok {
+  color: var(--jp-agent);
+}
+
+.decision__section-title--warn {
+  color: var(--jp-attention);
+}
+
+.decision__section-title--bad {
+  color: var(--jp-danger);
+}
+
+.decision__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--jp-text-secondary);
+  line-height: 1.7;
+}
+
+/* ------------------------------------------------------------------
    Onboarding (guided setup)
    ------------------------------------------------------------------ */
 .wizard {

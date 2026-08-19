@@ -199,3 +199,25 @@ export function getAllPlatformJobIds(platform: string): Set<string> {
     .all(platform);
   return new Set(rows.map((r) => r.platform_job_id));
 }
+
+/** V0.4-B：读取岗位决策所需字段（含完整 JD）。 */
+export interface JobDecisionSourceRow {
+  title: string;
+  company: string;
+  salary: string | null;
+  city: string | null;
+  degree: string | null;
+  experience: string | null;
+  job_labels: string | null;
+  jd_text: string | null;
+}
+
+export function getJobDecisionSource(platform: string, platformJobId: string): JobDecisionSourceRow | null {
+  const row = getDb()
+    .prepare<[string, string], JobDecisionSourceRow>(
+      `SELECT title, company, salary, city, degree, experience, job_labels, jd_text
+       FROM jobs WHERE platform = ? AND platform_job_id = ?`,
+    )
+    .get(platform, platformJobId);
+  return row ?? null;
+}

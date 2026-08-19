@@ -7,6 +7,7 @@ import {
 } from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
 import type { CandidateProfile, CandidateSnapshot } from '../../core/candidate';
+import type { DecisionRules, JobDecisionView } from '../../core/decision';
 import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
 import type { JobTarget, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 import { getDataDir } from '../../database/database';
@@ -28,6 +29,12 @@ import {
   searchBossJobs,
 } from './services/platformService';
 import { loadJobTarget, loadSearchPlan, persistJobTarget, runSearchPlan } from './services/searchPlanService';
+import {
+  analyzeJobDecision,
+  getDecisionRules,
+  getJobDecision,
+  saveDecisionRules,
+} from './services/decisionService';
 
 function buildBootstrap(): BootstrapData {
   return {
@@ -173,5 +180,25 @@ export function registerIpc(): void {
         stopReason: { task: tasks[0], status: 'INVALID_RESPONSE', message: `自动搜索异常：${message}` },
       };
     }
+  });
+
+  ipcMain.handle(IPC.GetDecisionRules, (): DecisionRules => getDecisionRules());
+
+  ipcMain.handle(IPC.SaveDecisionRules, (_event, raw: unknown): DecisionRules => {
+    return saveDecisionRules(raw as DecisionRules);
+  });
+
+  ipcMain.handle(IPC.GetJobDecision, (_event, platform: unknown, platformJobId: unknown): JobDecisionView => {
+    if (typeof platform !== 'string' || typeof platformJobId !== 'string' || !platformJobId) {
+      return { decision: null, stale: false, staleReasons: [] };
+    }
+    return getJobDecision(platform, platformJobId);
+  });
+
+  ipcMain.handle(IPC.AnalyzeJobDecision, (_event, platform: unknown, platformJobId: unknown): JobDecisionView => {
+    if (typeof platform !== 'string' || typeof platformJobId !== 'string' || !platformJobId) {
+      throw new Error('无效的岗位标识。');
+    }
+    return analyzeJobDecision(platform, platformJobId);
   });
 }

@@ -31,6 +31,10 @@ const IPC = {
   GetSearchPlan: 'jobpilot:getSearchPlan',
   RunSearchPlan: 'jobpilot:runSearchPlan',
   SearchPlanProgress: 'jobpilot:searchPlanProgress',
+  GetDecisionRules: 'jobpilot:getDecisionRules',
+  SaveDecisionRules: 'jobpilot:saveDecisionRules',
+  GetJobDecision: 'jobpilot:getJobDecision',
+  AnalyzeJobDecision: 'jobpilot:analyzeJobDecision',
 } as const;
 
 const api: JobPilotApi = {
@@ -55,6 +59,10 @@ const api: JobPilotApi = {
   saveJobTarget: (target) => ipcRenderer.invoke(IPC.SaveJobTarget, target),
   getSearchPlan: () => ipcRenderer.invoke(IPC.GetSearchPlan),
   runSearchPlan: () => ipcRenderer.invoke(IPC.RunSearchPlan),
+  getDecisionRules: () => ipcRenderer.invoke(IPC.GetDecisionRules),
+  saveDecisionRules: (rules) => ipcRenderer.invoke(IPC.SaveDecisionRules, rules),
+  getJobDecision: (platform, platformJobId) => ipcRenderer.invoke(IPC.GetJobDecision, platform, platformJobId),
+  analyzeJobDecision: (platform, platformJobId) => ipcRenderer.invoke(IPC.AnalyzeJobDecision, platform, platformJobId),
   onSearchPlanProgress: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => cb(progress as never);
     ipcRenderer.on(IPC.SearchPlanProgress, listener);
