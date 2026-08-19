@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ResumeRecord } from '../core/resume';
+import type { CandidateProfile, CandidateSnapshot } from '../core/candidate';
 import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../core/matching';
 import type {
   JobTarget,
@@ -32,6 +33,10 @@ export const IPC = {
   PickResume: 'jobpilot:pickResume',
   ImportResume: 'jobpilot:importResume',
   RemoveResume: 'jobpilot:removeResume',
+  GetCandidateProfile: 'jobpilot:getCandidateProfile',
+  ParseResume: 'jobpilot:parseResume',
+  ImportResumeAndParse: 'jobpilot:importResumeAndParse',
+  SaveCandidateProfile: 'jobpilot:saveCandidateProfile',
   GetPlatformStatus: 'jobpilot:getPlatformStatus',
   ConnectPlatform: 'jobpilot:connectPlatform',
   CheckPlatform: 'jobpilot:checkPlatform',
@@ -82,6 +87,14 @@ export interface JobPilotApi {
   pickResume(): Promise<ResumeRecord | null>;
   importResume(path: string): Promise<ResumeRecord | null>;
   removeResume(): Promise<boolean>;
+  /** 读取当前简历 + 候选人资料状态（不触发解析）。 */
+  getCandidateProfile(): Promise<CandidateSnapshot>;
+  /** 解析当前使用的简历并写入资料（未确认）。 */
+  parseResume(): Promise<CandidateSnapshot>;
+  /** 导入新简历并立即解析（更换简历确认流程）。 */
+  importResumeAndParse(path: string): Promise<CandidateSnapshot>;
+  /** 保存用户确认 / 修改后的候选人资料。 */
+  saveCandidateProfile(profile: CandidateProfile): Promise<CandidateSnapshot>;
   getPlatformStatus(): Promise<BossPlatformStatus>;
   connectPlatform(platform: PlatformType): Promise<PlatformActionResult>;
   checkPlatform(platform: PlatformType): Promise<PlatformActionResult>;

@@ -23,12 +23,17 @@
     "test:job-persist": "electron scripts/job-persist-test.cjs",
     "test:search-plan": "electron scripts/search-plan-test.cjs",
     "test:jd-format": "node scripts/jd-format-test.cjs",
+    "test:candidate-parser": "node scripts/candidate-parser-test.cjs",
+    "test:candidate-profile": "electron scripts/candidate-profile-test.cjs",
+    "test:candidate-real-resume": "electron scripts/candidate-real-resume-test.cjs",
     "cdp:spike": "node scripts/boss-cdp-spike.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\" \"database/**/*.ts\" \"core/**/*.ts\" \"platforms/**/*.ts\" \"shared/**/*.ts\"",
     "dist": "npm run build && node scripts/setup-native.cjs && electron-builder"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
+    "mammoth": "^1.12.1",
+    "pdf-parse": "^2.4.5",
     "playwright-core": "^1.62.1",
     "zod": "^3.25.76"
   },

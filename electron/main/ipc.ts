@@ -6,12 +6,19 @@ import {
   type SettingsSnapshot,
 } from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
+import type { CandidateProfile, CandidateSnapshot } from '../../core/candidate';
 import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
 import type { JobTarget, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 import { getDataDir } from '../../database/database';
 import { getRunMode } from '../../database/repositories/settingsRepository';
 import * as settingsService from '../../database/services/settingsService';
 import { importResumeFromPath, pickResume, removeResume } from './services/resumeService';
+import {
+  getCandidateSnapshot,
+  importResumeAndParse,
+  parseCurrentResume,
+  saveCandidateProfile,
+} from './services/candidateService';
 import {
   checkBossConnection,
   connectBoss,
@@ -67,6 +74,21 @@ export function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.RemoveResume, (): boolean => removeResume());
+
+  ipcMain.handle(IPC.GetCandidateProfile, (): CandidateSnapshot => getCandidateSnapshot());
+
+  ipcMain.handle(IPC.ParseResume, async (): Promise<CandidateSnapshot> => parseCurrentResume());
+
+  ipcMain.handle(IPC.ImportResumeAndParse, async (_event, rawPath: unknown): Promise<CandidateSnapshot> => {
+    if (typeof rawPath !== 'string' || rawPath.length === 0) {
+      throw new Error('无效的文件路径。');
+    }
+    return importResumeAndParse(rawPath);
+  });
+
+  ipcMain.handle(IPC.SaveCandidateProfile, (_event, raw: unknown): CandidateSnapshot => {
+    return saveCandidateProfile(raw as CandidateProfile);
+  });
 
   ipcMain.handle(IPC.GetPlatformStatus, (): BossPlatformStatus => getBossStatus());
 

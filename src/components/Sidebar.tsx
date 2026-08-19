@@ -1,4 +1,12 @@
-import { ClipboardList, House, MessagesSquare, Search, Settings, type LucideIcon } from 'lucide-react';
+import {
+  ClipboardList,
+  House,
+  MessagesSquare,
+  Search,
+  Settings,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
 import { NAV_ITEMS, type DashboardTab } from '../router';
 import type { RunMode } from '../../shared/enums';
 import { Badge, StatusDot } from './ui';
@@ -6,6 +14,7 @@ import { Badge, StatusDot } from './ui';
 const ICONS: Record<DashboardTab, LucideIcon> = {
   home: House,
   jobs: Search,
+  profile: UserRound,
   messages: MessagesSquare,
   applications: ClipboardList,
   settings: Settings,

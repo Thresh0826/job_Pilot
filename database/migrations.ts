@@ -149,7 +149,25 @@ export function runMigrations(db: Database.Database): void {
       target_cities TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS candidate_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      resume_id INTEGER NOT NULL UNIQUE REFERENCES resumes(id) ON DELETE CASCADE,
+      profile_json TEXT NOT NULL,
+      source_text TEXT NOT NULL DEFAULT '',
+      parse_version INTEGER NOT NULL DEFAULT 1,
+      confirmed INTEGER NOT NULL DEFAULT 0,
+      parse_warnings TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
+
+  // V0.4-A 增量迁移：为已存在的 candidate_profiles 表补充 parse_warnings 列。
+  const profileColumns = db.prepare('PRAGMA table_info(candidate_profiles)').all() as { name: string }[];
+  if (profileColumns.length > 0 && !profileColumns.some((c) => c.name === 'parse_warnings')) {
+    db.exec("ALTER TABLE candidate_profiles ADD COLUMN parse_warnings TEXT NOT NULL DEFAULT '[]'");
+  }
 
   // V0.2 最小迁移：为已存在的 V0.1 数据库补充 last_checked_at 列。
   const columns = db.prepare('PRAGMA table_info(platform_accounts)').all() as { name: string }[];

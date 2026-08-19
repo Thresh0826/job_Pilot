@@ -116,6 +116,7 @@ SQLite 是 JobPilot 当前主要结构化本地数据库。
 应用设置
 用户档案
 简历信息
+候选人资料（candidate_profiles：简历解析出的结构化资料 + 用户人工修正，V0.4-A）
 求职偏好
 AI 权限
 通知偏好
@@ -208,6 +209,17 @@ TEST 不得复用 PRODUCTION Profile。
 不得长期依赖用户原始文件位置。
 
 正式简历文件应保存到应用 `userData` 目录下。
+
+V0.4-A 起，简历上传后在本机完成纯文本提取与规则解析，生成结构化 Candidate Profile：
+
+```text
+resumes/（原始简历文件副本）
+    ↓ 本地提取（PDF / DOCX）
+候选人资料（candidate_profiles 表：profile_json + source_text + confirmed）
+```
+
+解析结果只是草稿：用户可在「我的资料」页查看、修改、删除、补充，
+人工修改后的内容以 `confirmed` 标记，后续 AI Matching 只使用确认后的资料。
 
 真实简历属于隐私数据，不得提交 Git。
 
