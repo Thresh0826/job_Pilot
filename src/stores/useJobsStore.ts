@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { JobSearchResult } from '../../core/matching';
+import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
 import type { SearchPlanProgress, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 
 /**
- * C2/C3：Jobs 页运行期状态（应用未关闭时，切换模块不丢失当前搜索与搜索计划）。
- * 暂不要求重启后恢复；keyword / city / result（含 NEW/SEEN 状态）与计划状态随页面切换保留。
+ * C2/C3/C4：Jobs 页运行期状态（应用未关闭时，切换模块不丢失当前搜索与详情）。
+ * 暂不要求重启后恢复；keyword / city / result（含 NEW/SEEN）、选中岗位与详情、计划状态随页面切换保留。
  */
 interface JobsState {
   keyword: string;
@@ -25,6 +25,16 @@ interface JobsState {
   setPlanResult: (r: SearchPlanResult | null) => void;
   runningPlan: boolean;
   setRunningPlan: (v: boolean) => void;
+
+  /** C4 当前选中岗位与详情（切换模块后保持）。 */
+  selectedJobId: string | null;
+  setSelectedJobId: (id: string | null) => void;
+  detailJob: Job | null;
+  setDetailJob: (job: Job | null) => void;
+  detailResult: JobDetailResult | null;
+  setDetailResult: (r: JobDetailResult | null) => void;
+  loadingDetail: boolean;
+  setLoadingDetail: (v: boolean) => void;
 }
 
 export const useJobsStore = create<JobsState>((set) => ({
@@ -52,4 +62,13 @@ export const useJobsStore = create<JobsState>((set) => ({
   setPlanResult: (planResult) => set({ planResult }),
   runningPlan: false,
   setRunningPlan: (runningPlan) => set({ runningPlan }),
+
+  selectedJobId: null,
+  setSelectedJobId: (selectedJobId) => set({ selectedJobId }),
+  detailJob: null,
+  setDetailJob: (detailJob) => set({ detailJob }),
+  detailResult: null,
+  setDetailResult: (detailResult) => set({ detailResult }),
+  loadingDetail: false,
+  setLoadingDetail: (loadingDetail) => set({ loadingDetail }),
 }));

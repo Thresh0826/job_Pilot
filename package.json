@@ -22,6 +22,7 @@
     "test:job-search": "electron scripts/job-search-test.cjs",
     "test:job-persist": "electron scripts/job-persist-test.cjs",
     "test:search-plan": "electron scripts/search-plan-test.cjs",
+    "test:jd-format": "node scripts/jd-format-test.cjs",
     "cdp:spike": "node scripts/boss-cdp-spike.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"electron/**/*.ts\" \"database/**/*.ts\" \"core/**/*.ts\" \"platforms/**/*.ts\" \"shared/**/*.ts\"",
     "dist": "npm run build && node scripts/setup-native.cjs && electron-builder"

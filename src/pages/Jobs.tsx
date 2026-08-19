@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import type { Job, JobDetailResult } from '../../core/matching';
+import { useEffect, useRef, useState } from 'react';
+import type { Job } from '../../core/matching';
 import type { JobTarget } from '../../core/searchPlan';
 import { Button, Input } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
 import { useJobsStore } from '../stores/useJobsStore';
+import { formatJdText } from '../../core/jdFormat';
 
 export default function Jobs() {
   const keyword = useJobsStore((s) => s.keyword);
@@ -23,6 +24,15 @@ export default function Jobs() {
   const setPlanResult = useJobsStore((s) => s.setPlanResult);
   const setRunningPlan = useJobsStore((s) => s.setRunningPlan);
 
+  const selectedJobId = useJobsStore((s) => s.selectedJobId);
+  const detailJob = useJobsStore((s) => s.detailJob);
+  const detailResult = useJobsStore((s) => s.detailResult);
+  const loadingDetail = useJobsStore((s) => s.loadingDetail);
+  const setSelectedJobId = useJobsStore((s) => s.setSelectedJobId);
+  const setDetailJob = useJobsStore((s) => s.setDetailJob);
+  const setDetailResult = useJobsStore((s) => s.setDetailResult);
+  const setLoadingDetail = useJobsStore((s) => s.setLoadingDetail);
+
   const [targetJob, setTargetJob] = useState('');
   const [relatedText, setRelatedText] = useState('');
   const [citiesText, setCitiesText] = useState('');
@@ -32,11 +42,11 @@ export default function Jobs() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const [detailResult, setDetailResult] = useState<JobDetailResult | null>(null);
-  const [detailJob, setDetailJob] = useState<Job | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  // 详情请求序号：快速连续点击岗位时，仅最新一次请求可更新详情 UI（详情内容与选中岗位对应）。
+  const detailReqRef = useRef(0);
 
   const canSearch = keyword.trim().length > 0 && city.trim().length > 0;
+  const newCount = result?.status === 'SUCCESS' ? result.jobs.filter((j) => j.status === 'NEW').length : 0;
 
   // C3：进入页面时回填已保存的求职目标、生成搜索计划并订阅进度。
   useEffect(() => {
@@ -119,8 +129,9 @@ export default function Jobs() {
     setLoading(true);
     setError('');
     setResult(null);
-    setDetailResult(null);
+    setSelectedJobId(null);
     setDetailJob(null);
+    setDetailResult(null);
     try {
       const res = await window.api.searchBossJobs({ keyword: keyword.trim(), city: city.trim() });
       setResult(res);
@@ -132,95 +143,114 @@ export default function Jobs() {
   };
 
   const viewDetail = async (job: Job) => {
+    const reqId = ++detailReqRef.current;
+    setSelectedJobId(job.id);
+    setDetailJob(job);
     setLoadingDetail(true);
     setDetailResult(null);
-    setDetailJob(job);
     try {
       const res = await window.api.getBossJobDetail(job);
-      setDetailResult(res);
-      // C2：详情读取成功后立即在当前页面标记 SEEN（失败不标记，保持 NEW）。
+      // 详情已成功读取 → 无论是否过期都标记 SEEN（C2 语义：读取成功即 SEEN）。
       if (res.status === 'SUCCESS' && res.detail) {
         markJobSeen(job.id);
       }
+      // 仅最新一次请求可更新详情 UI，避免连续点击时详情与选中岗位错位。
+      if (reqId === detailReqRef.current) {
+        setDetailResult(res);
+      }
     } catch (err) {
-      setDetailResult({
-        status: 'DETAIL_PARSE_FAILED',
-        detail: null,
-        message: err instanceof Error ? err.message : '详情读取失败',
-      });
+      if (reqId === detailReqRef.current) {
+        setDetailResult({
+          status: 'DETAIL_PARSE_FAILED',
+          detail: null,
+          message: err instanceof Error ? err.message : '详情读取失败',
+        });
+      }
     } finally {
-      setLoadingDetail(false);
+      if (reqId === detailReqRef.current) {
+        setLoadingDetail(false);
+      }
     }
   };
 
+  const retryDetail = () => {
+    if (detailJob) void viewDetail(detailJob);
+  };
+
+  const detail = detailResult?.detail ?? null;
+
   return (
     <div className="page">
-      <PageHeader title="找工作" desc="自动搜索计划 + 手动搜索（V0.3-C3，需先连接 BOSS）。" />
+      <PageHeader title="找工作" desc="设置求职目标 → 自动/手动搜索 → 浏览岗位与详情（需先连接 BOSS）。" />
 
-      <div className="card mb-24">
-        <h3 className="section-title" style={{ marginTop: 0 }}>
-          求职目标
-        </h3>
-        <Input
-          value={targetJob}
-          placeholder="目标岗位，如 网络测试工程师"
-          onChange={(e) => setTargetJob(e.target.value)}
-        />
-        <div className="mt-8">
+      {/* 搜索区域：求职目标 + 搜索计划 */}
+      <div className="jobs-top">
+        <div className="card">
+          <h3 className="section-title" style={{ marginTop: 0 }}>
+            求职目标
+          </h3>
           <Input
-            value={relatedText}
-            placeholder="相关岗位，逗号分隔，如 网卡测试工程师，网络工程师"
-            onChange={(e) => setRelatedText(e.target.value)}
+            value={targetJob}
+            placeholder="目标岗位，如 网络测试工程师"
+            onChange={(e) => setTargetJob(e.target.value)}
           />
-        </div>
-        <div className="mt-8">
-          <Input
-            value={citiesText}
-            placeholder="目标城市，逗号分隔，如 无锡，苏州"
-            onChange={(e) => setCitiesText(e.target.value)}
-          />
-        </div>
-        <div className="row mt-8" style={{ justifyContent: 'space-between' }}>
-          <Button variant="ghost" onClick={() => void saveTarget()}>
-            保存求职目标
-          </Button>
-          {targetMsg ? <span className="small muted">{targetMsg}</span> : null}
-        </div>
-        {targetError ? (
-          <div className="small" style={{ color: 'var(--jp-danger)', marginTop: 6 }}>
-            {targetError}
+          <div className="mt-8">
+            <Input
+              value={relatedText}
+              placeholder="相关岗位，逗号分隔，如 网卡测试工程师，网络工程师"
+              onChange={(e) => setRelatedText(e.target.value)}
+            />
           </div>
-        ) : null}
-      </div>
-
-      <div className="card mb-24">
-        <h3 className="section-title" style={{ marginTop: 0 }}>
-          本次搜索计划
-        </h3>
-        {planTasks.length === 0 ? (
-          <div className="empty__desc">先保存求职目标，将自动生成搜索计划。</div>
-        ) : (
-          <>
-            <ol className="plan-list">
-              {planTasks.map((t, i) => (
-                <li key={`${t.keyword}-${t.city}-${i}`}>
-                  {t.keyword} · {t.city}
-                </li>
-              ))}
-            </ol>
-            <div className="small muted mt-8">共 {planTasks.length} 个搜索任务</div>
-            <div className="mt-8">
-              <Button disabled={runningPlan || planTasks.length === 0} onClick={() => void startPlan()}>
-                {runningPlan ? '搜索中…' : '开始搜索'}
-              </Button>
+          <div className="mt-8">
+            <Input
+              value={citiesText}
+              placeholder="目标城市，逗号分隔，如 无锡，苏州"
+              onChange={(e) => setCitiesText(e.target.value)}
+            />
+          </div>
+          <div className="row mt-8" style={{ justifyContent: 'space-between' }}>
+            <Button variant="ghost" onClick={() => void saveTarget()}>
+              保存求职目标
+            </Button>
+            {targetMsg ? <span className="small muted">{targetMsg}</span> : null}
+          </div>
+          {targetError ? (
+            <div className="small" style={{ color: 'var(--jp-danger)', marginTop: 6 }}>
+              {targetError}
             </div>
-          </>
-        )}
+          ) : null}
+        </div>
+
+        <div className="card">
+          <h3 className="section-title" style={{ marginTop: 0 }}>
+            搜索计划
+          </h3>
+          {planTasks.length === 0 ? (
+            <div className="empty__desc">保存求职目标后自动生成搜索任务。</div>
+          ) : (
+            <>
+              <ol className="plan-list">
+                {planTasks.map((t, i) => (
+                  <li key={`${t.keyword}-${t.city}-${i}`}>
+                    {t.keyword} · {t.city}
+                  </li>
+                ))}
+              </ol>
+              <div className="small muted mt-8">共 {planTasks.length} 个搜索任务</div>
+              <div className="mt-16">
+                <Button disabled={runningPlan || planTasks.length === 0} onClick={() => void startPlan()}>
+                  {runningPlan ? '搜索中…' : '开始搜索'}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
+      {/* 自动搜索进度 / 汇总 */}
       {planProgress ? (
-        <div className="card mb-24">
-          <div className="empty__title" style={{ marginBottom: 6 }}>
+        <div className="card mb-24 jobs-banner">
+          <div className="jobs-banner__title">
             正在搜索 {planProgress.index} / {planProgress.total}
           </div>
           <div className="empty__desc">
@@ -233,15 +263,13 @@ export default function Jobs() {
       ) : null}
 
       {planResult ? (
-        <div className="card mb-24">
-          <div className="empty__title" style={{ marginBottom: 6 }}>
+        <div className="card mb-24 jobs-banner">
+          <div className="jobs-banner__title">
             {planResult.status === 'STOPPED' ? '自动搜索已停止' : '本次自动搜索完成'}
           </div>
           <div className="empty__desc">
-            执行任务：{planResult.total} · 成功：{planResult.succeeded} · 失败：{planResult.failed}
-            <br />
-            发现岗位：{planResult.discovered} · 新岗位：{planResult.newCount} · 已见岗位：
-            {planResult.seenCount}
+            执行任务：{planResult.total} · 成功：{planResult.succeeded} · 失败：{planResult.failed} · 发现岗位：
+            {planResult.discovered} · 新岗位：{planResult.newCount} · 已见岗位：{planResult.seenCount}
           </div>
           {planResult.stopReason ? (
             <div className="empty__desc mt-8" style={{ color: 'var(--jp-danger)' }}>
@@ -262,7 +290,11 @@ export default function Jobs() {
         </div>
       ) : null}
 
+      {/* 手动搜索 */}
       <div className="card mb-24">
+        <h3 className="section-title" style={{ marginTop: 0 }}>
+          手动搜索
+        </h3>
         <div className="row">
           <Input
             value={keyword}
@@ -288,125 +320,177 @@ export default function Jobs() {
         </div>
       </div>
 
-      {error ? <div className="empty">{error}</div> : null}
-
-      {result && result.status !== 'SUCCESS' ? (
-        <div className="empty">
-          <div className="empty__title">搜索未完成</div>
-          <div className="empty__desc">{result.message ?? result.status}</div>
-        </div>
-      ) : null}
-
-      {result && result.status === 'SUCCESS' ? (
-        result.jobs.length === 0 ? (
-          <div className="empty">
-            <div className="empty__title">没有找到相关岗位</div>
-            <div className="empty__desc">试试其他关键词或城市。</div>
-          </div>
-        ) : (
-          <>
-            <div className="empty__desc" style={{ marginBottom: 8 }}>
-              已获取 {result.jobs.length} 个岗位
-              {typeof result.batchesLoaded === 'number' ? ` · 加载 ${result.batchesLoaded} 批` : ''}
-              {result.jobs.filter((j) => j.status === 'NEW').length > 0
-                ? ` · 新 ${result.jobs.filter((j) => j.status === 'NEW').length} 个`
-                : ''}
-              {result.hasMore === false ? ' · 已无更多岗位' : ''}
+      {/* 工作台：岗位列表 + 岗位详情 */}
+      <div className="jobs-workbench">
+        <div className="card jobs-list">
+          <div className="jobs-list__head">
+            <h3 className="section-title" style={{ marginTop: 0, marginBottom: 0 }}>
+              岗位列表
+            </h3>
+            <div className="small muted">
+              {result === null
+                ? '尚未搜索'
+                : result.status === 'SUCCESS'
+                  ? `搜索已完成 · 发现 ${result.jobs.length} 个岗位 · 新 ${newCount} 个`
+                  : '搜索未完成'}
             </div>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ width: '20%' }}>岗位</th>
-                  <th>公司</th>
-                  <th>薪资</th>
-                  <th>地点</th>
-                  <th>经验</th>
-                  <th>学历</th>
-                  <th style={{ width: '88px' }}>操作</th>
-                </tr>
-              </thead>
-              <tbody>
+          </div>
+
+          <div className="jobs-list__body">
+            {error ? (
+              <div className="empty">
+                <div className="empty__title">搜索失败</div>
+                <div className="empty__desc">{error}</div>
+              </div>
+            ) : null}
+
+            {!error && result === null ? (
+              <div className="empty">
+                <div className="empty__title">尚未搜索</div>
+                <div className="empty__desc">使用上方手动搜索，或运行搜索计划。</div>
+              </div>
+            ) : null}
+
+            {!error && result && result.status !== 'SUCCESS' ? (
+              <div className="empty">
+                <div className="empty__title">搜索未完成</div>
+                <div className="empty__desc">{result.message ?? result.status}</div>
+              </div>
+            ) : null}
+
+            {!error && result && result.status === 'SUCCESS' && result.jobs.length === 0 ? (
+              <div className="empty">
+                <div className="empty__title">没有找到相关岗位</div>
+                <div className="empty__desc">试试其他关键词或城市。</div>
+              </div>
+            ) : null}
+
+            {!error && result && result.status === 'SUCCESS' && result.jobs.length > 0 ? (
+              <div className="job-rows">
                 {result.jobs.map((job) => (
-                  <tr key={job.id}>
-                    <td style={{ fontWeight: 600 }}>
-                      {job.title}
+                  <div
+                    key={job.id}
+                    className={`job-row${selectedJobId === job.id ? ' job-row--selected' : ''}`}
+                    onClick={() => void viewDetail(job)}
+                  >
+                    <div className="job-row__line1">
+                      <span className="job-row__title">{job.title}</span>
                       {job.status ? (
-                        <span className={`tag tag--status ${job.status === 'NEW' ? 'tag--new' : 'tag--seen'}`}>
+                        <span
+                          className={`tag tag--status ${job.status === 'NEW' ? 'tag--new' : 'tag--seen'}`}
+                        >
                           {job.status}
                         </span>
                       ) : null}
-                    </td>
-                    <td>{job.company}</td>
-                    <td>{job.salary ? `¥${job.salary}` : '面议'}</td>
-                    <td>{job.location}</td>
-                    <td>{job.experience ?? '—'}</td>
-                    <td>{job.degree ?? '—'}</td>
-                    <td>
-                      <Button
-                        variant="ghost"
-                      size="sm"
-                      disabled={loadingDetail}
-                      onClick={() => void viewDetail(job)}
-                    >
-                      {loadingDetail && detailJob?.id === job.id ? '读取中…' : '查看详情'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </>
-        )
-      ) : null}
-
-      {detailResult ? (
-        detailResult.status !== 'SUCCESS' ? (
-          <div className="card mt-24">
-            <div className="empty__title" style={{ marginBottom: 6 }}>
-              详情读取失败
-            </div>
-            <div className="empty__desc">{detailResult.message ?? detailResult.status}</div>
-          </div>
-        ) : detailResult.detail ? (
-          <div className="card mt-24">
-            <div className="job-card__head">
-              <div>
-                <div className="job-card__company">{detailResult.detail.company}</div>
-                <div className="job-card__title">{detailResult.detail.title}</div>
-              </div>
-              <div className="job-card__salary" style={{ marginTop: 0 }}>
-                {detailResult.detail.salary ? `¥${detailResult.detail.salary}` : '面议'}
-              </div>
-            </div>
-            <div className="job-card__meta mt-8">
-              {[detailResult.detail.location, detailResult.detail.experience, detailResult.detail.degree]
-                .filter(Boolean)
-                .join(' · ')}
-            </div>
-            <h3 className="section-title" style={{ marginTop: 16 }}>
-              职位描述
-            </h3>
-            <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--jp-text-primary)' }}>
-              {detailResult.detail.jdText ?? '（无职位描述）'}
-            </p>
-            {detailResult.detail.jobLabels && detailResult.detail.jobLabels.length > 0 ? (
-              <div className="tag-input__items mt-16">
-                {detailResult.detail.jobLabels.map((tag) => (
-                  <span className="tag" key={tag}>
-                    {tag}
-                  </span>
+                      <span className="job-row__salary">{job.salary ? `¥${job.salary}` : '面议'}</span>
+                    </div>
+                    <div className="job-row__line2">
+                      {job.company}
+                      {job.location ? ` · ${job.location}` : ''}
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : null}
-            {detailResult.detail.recruiterName ? (
-              <div className="small muted mt-16">
-                招聘者：{detailResult.detail.recruiterName}
-                {detailResult.detail.recruiterTitle ? ` · ${detailResult.detail.recruiterTitle}` : ''}
+          </div>
+        </div>
+
+        <div className="card jobs-detail">
+          <h3 className="section-title" style={{ marginTop: 0, marginBottom: 0 }}>
+            岗位详情
+          </h3>
+          <div className="jobs-detail__body">
+            {loadingDetail ? (
+              <div className="jobs-detail__loading">
+                <div className="empty__title">读取中…</div>
+                <div className="empty__desc">
+                  {detailJob?.title ?? ''}
+                  {detailJob?.company ? ` · ${detailJob.company}` : ''}
+                </div>
+              </div>
+            ) : null}
+
+            {!loadingDetail && detailResult && detailResult.status !== 'SUCCESS' ? (
+              <div className="jobs-detail__error">
+                <div className="empty__title">详情读取失败</div>
+                <div className="empty__desc">{detailResult.message ?? detailResult.status}</div>
+                <div className="mt-16">
+                  <Button variant="ghost" size="sm" onClick={retryDetail}>
+                    重新尝试
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
+            {!loadingDetail && detail && detailResult?.status === 'SUCCESS' ? (
+              <div className="jobs-detail__content">
+                <div className="job-card__company">{detail.company}</div>
+                <div className="job-card__title">{detail.title}</div>
+                <div className="job-card__salary">{detail.salary ? `¥${detail.salary}` : '面议'}</div>
+                <div className="job-card__meta mt-8">
+                  {[detail.location, detail.experience, detail.degree].filter(Boolean).join(' · ')}
+                </div>
+
+                <h4 className="jd-section-title">职位描述</h4>
+                <p className="jd-text">{formatJdText(detail.jdText ?? '（无职位描述）')}</p>
+
+                {detail.jobLabels && detail.jobLabels.length > 0 ? (
+                  <>
+                    <h4 className="jd-section-title">岗位标签</h4>
+                    <div className="jd-tags">
+                      {detail.jobLabels.map((t) => (
+                        <span className="tag" key={t}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+
+                {detail.skills && detail.skills.length > 0 ? (
+                  <>
+                    <h4 className="jd-section-title">技能</h4>
+                    <div className="jd-tags">
+                      {detail.skills.map((t) => (
+                        <span className="tag" key={t}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+
+                {detail.welfare && detail.welfare.length > 0 ? (
+                  <>
+                    <h4 className="jd-section-title">福利</h4>
+                    <div className="jd-tags">
+                      {detail.welfare.map((t) => (
+                        <span className="tag" key={t}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+
+                {detail.recruiterName ? (
+                  <div className="small muted mt-16">
+                    招聘者：{detail.recruiterName}
+                    {detail.recruiterTitle ? ` · ${detail.recruiterTitle}` : ''}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {!loadingDetail && !detailResult ? (
+              <div className="empty">
+                <div className="empty__title">尚未选择岗位</div>
+                <div className="empty__desc">从左侧岗位列表选择岗位查看详情。</div>
               </div>
             ) : null}
           </div>
-        ) : null
-      ) : null}
+        </div>
+      </div>
     </div>
   );
 }

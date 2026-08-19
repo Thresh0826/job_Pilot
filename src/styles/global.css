@@ -764,6 +764,146 @@ button {
   color: var(--jp-text-primary);
 }
 
+/* C4：Jobs 工作台布局（岗位列表 + 详情面板） */
+.jobs-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.jobs-banner {
+  border-left: 3px solid var(--jp-agent);
+}
+
+.jobs-banner__title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.jobs-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+.jobs-list {
+  min-width: 0;
+}
+
+.jobs-list__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.jobs-list__body {
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.job-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.job-row {
+  padding: 12px 14px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.job-row:hover {
+  border-color: var(--jp-border-hover);
+  background: var(--jp-bg-soft);
+}
+
+.job-row--selected {
+  background: var(--jp-accent-soft);
+  border-color: var(--jp-accent);
+  border-left: 2px solid var(--jp-accent);
+  padding-left: 13px;
+}
+
+.job-row__line1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-row__title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--jp-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-row__salary {
+  margin-left: auto;
+  flex: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--jp-text-primary);
+}
+
+.job-row__line2 {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--jp-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jobs-detail {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+}
+
+.jobs-detail__body {
+  margin-top: 16px;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 680px;
+}
+
+.jobs-detail__loading,
+.jobs-detail__error {
+  padding: 32px 8px;
+  text-align: center;
+}
+
+.jd-section-title {
+  margin: 20px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--jp-text-primary);
+}
+
+.jd-text {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.8;
+  font-size: 14px;
+  color: var(--jp-text-primary);
+}
+
+.jd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .tag__remove {
   display: inline-flex;
   align-items: center;
