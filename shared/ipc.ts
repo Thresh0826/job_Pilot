@@ -38,6 +38,8 @@ export const IPC = {
 export const bossSearchInputSchema = z.object({
   keyword: z.string().min(1, '搜索关键词不能为空'),
   city: z.string().min(1, '城市不能为空'),
+  maxJobs: z.number().int().min(1).max(200).optional(),
+  maxBatches: z.number().int().min(1).max(20).optional(),
 });
 
 /** 岗位详情 IPC 输入校验（保留 Job 其余字段供详情读取使用）。 */

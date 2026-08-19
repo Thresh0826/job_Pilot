@@ -70,17 +70,25 @@ export type JobSearchStatus =
   | 'CDP_DISCONNECTED'
   | 'UNSUPPORTED_CITY';
 
-/** 岗位搜索查询参数（V0.3-A：单关键词 + 单城市）。 */
+/** 岗位搜索查询参数（V0.3-A：单关键词 + 单城市；V0.3-C1：可选多批限制）。 */
 export interface JobSearchQuery {
   keyword: string;
   city: string;
+  /** C1：单次搜索最多捕获岗位数（含去重）。缺省由实现保守决定。 */
+  maxJobs?: number;
+  /** C1：单次搜索最多加载批次（首批 = 1）。缺省由实现保守决定。 */
+  maxBatches?: number;
 }
 
-/** 岗位搜索结果（V0.3-A：一次搜索的首批岗位）。 */
+/** 岗位搜索结果（V0.3-A：一次搜索的首批岗位；V0.3-C1：多批累积 + 去重）。 */
 export interface JobSearchResult {
   status: JobSearchStatus;
   jobs: Job[];
   message?: string;
+  /** C1：实际加载的批次数量（首批 = 1；未加载到任何批次为 0）。 */
+  batchesLoaded?: number;
+  /** C1：平台是否还有更多批次（受 maxJobs/maxBatches/超时限制而停止时为上一次已知值）。 */
+  hasMore?: boolean;
 }
 
 /** 岗位详情（V0.3-B：单个岗位真实 JD）。字段只有页面真实存在时才填，缺失为 undefined。 */

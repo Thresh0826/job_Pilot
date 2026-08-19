@@ -98,7 +98,10 @@ export class BossAdapter implements PlatformAdapter {
         : { status: 'NOT_CONNECTED', jobs: [], message: '尚未连接 BOSS，请先连接后重试。' };
     }
 
-    return this.discovery.searchJobs(runMode, query.keyword, query.city);
+    return this.discovery.searchJobs(runMode, query.keyword, query.city, {
+      maxJobs: query.maxJobs,
+      maxBatches: query.maxBatches,
+    });
   }
 
   /** V0.3-B：单个岗位详情读取（独立详情 tab，不干扰搜索 target）。 */

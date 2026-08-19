@@ -96,30 +96,36 @@ export default function Jobs() {
             <div className="empty__desc">试试其他关键词或城市。</div>
           </div>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th style={{ width: '20%' }}>岗位</th>
-                <th>公司</th>
-                <th>薪资</th>
-                <th>地点</th>
-                <th>经验</th>
-                <th>学历</th>
-                <th style={{ width: '88px' }}>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.jobs.map((job) => (
-                <tr key={job.id}>
-                  <td style={{ fontWeight: 600 }}>{job.title}</td>
-                  <td>{job.company}</td>
-                  <td>{job.salary ? `¥${job.salary}` : '面议'}</td>
-                  <td>{job.location}</td>
-                  <td>{job.experience ?? '—'}</td>
-                  <td>{job.degree ?? '—'}</td>
-                  <td>
-                    <Button
-                      variant="ghost"
+          <>
+            <div className="empty__desc" style={{ marginBottom: 8 }}>
+              已获取 {result.jobs.length} 个岗位
+              {typeof result.batchesLoaded === 'number' ? ` · 加载 ${result.batchesLoaded} 批` : ''}
+              {result.hasMore === false ? ' · 已无更多岗位' : ''}
+            </div>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: '20%' }}>岗位</th>
+                  <th>公司</th>
+                  <th>薪资</th>
+                  <th>地点</th>
+                  <th>经验</th>
+                  <th>学历</th>
+                  <th style={{ width: '88px' }}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.jobs.map((job) => (
+                  <tr key={job.id}>
+                    <td style={{ fontWeight: 600 }}>{job.title}</td>
+                    <td>{job.company}</td>
+                    <td>{job.salary ? `¥${job.salary}` : '面议'}</td>
+                    <td>{job.location}</td>
+                    <td>{job.experience ?? '—'}</td>
+                    <td>{job.degree ?? '—'}</td>
+                    <td>
+                      <Button
+                        variant="ghost"
                       size="sm"
                       disabled={loadingDetail}
                       onClick={() => void viewDetail(job)}
@@ -131,6 +137,7 @@ export default function Jobs() {
               ))}
             </tbody>
           </table>
+          </>
         )
       ) : null}
 

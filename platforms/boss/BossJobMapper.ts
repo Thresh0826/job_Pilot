@@ -101,3 +101,10 @@ export function mapBossJoblist(data: unknown): Job[] {
     .map((item) => mapBossJob(item as RawBossJobItem))
     .filter((job): job is Job => job !== null && job.title !== '' && job.company !== '');
 }
+
+/** 读取 BOSS joblist 响应的 hasMore（平台是否还有后续批次；true / 1 视为有更多）。 */
+export function readBossHasMore(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+  const hasMore = (data as { zpData?: { hasMore?: unknown } }).zpData?.hasMore;
+  return hasMore === true || hasMore === 1;
+}
