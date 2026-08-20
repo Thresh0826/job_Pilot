@@ -72,6 +72,15 @@ export function createDefaultDecisionRules(): DecisionRules {
 /** 决策结论。 */
 export type Verdict = 'AUTO_APPLY' | 'REVIEW' | 'SKIP';
 
+/**
+ * 用户对决策结果的处理（V0.4-C REVIEW 队列）：
+ * - NONE：未处理（REVIEW 默认状态）
+ * - ALLOW：用户允许投递（进入待投递队列，本阶段仍不真正投递）
+ * - SKIP：用户明确跳过
+ * 仅改变决策状态，不影响原始 verdict。
+ */
+export type DecisionAction = 'NONE' | 'ALLOW' | 'SKIP';
+
 /** 引擎置信度（内部参考，不构成产品核心）。 */
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
@@ -95,6 +104,8 @@ export interface JobDecision {
   ruleViolations: string[];
   /** 决策输入指纹（profile + rules + JD），用于过期检测。 */
   contextHash: string;
+  /** 用户处理（V0.4-C：ALLOW / SKIP / NONE）。 */
+  userAction: DecisionAction;
   createdAt: string;
   updatedAt: string;
 }
@@ -127,4 +138,69 @@ export interface JobDecisionView {
   stale: boolean;
   /** 过期原因（供 UI 提示）。 */
   staleReasons: string[];
+}
+
+/* ------------------------------------------------------------------ */
+/* V0.4-C 批量分析                                                     */
+/* ------------------------------------------------------------------ */
+
+/** 有效岗位 JD 的最小长度：明显过短的文本（验证页 / 异常页）不允许用于决策。 */
+export const MIN_JD_LENGTH = 80;
+
+export type BatchAnalysisStatus = 'COMPLETED' | 'CANCELLED';
+
+/** 批量分析实时进度。 */
+export interface BatchAnalysisProgress {
+  /** 总岗位数：本次发现批次内的全部 NEW 岗位。 */
+  total: number;
+  /** 已完成决策数（含本次之前已有的有效决策）。 */
+  done: number;
+  autoApply: number;
+  review: number;
+  skip: number;
+  /** 读取 / 决策失败（含已标记失败的，可后续重新处理）。 */
+  failed: number;
+  /** 待处理数（无有效决策且未失败标记）。 */
+  pending: number;
+  /** 本轮已处理的待分析岗位数。 */
+  index: number;
+  /** 本轮待分析的岗位总数（开始时的 pending）。 */
+  todo: number;
+  /** 当前正在分析的岗位标题。 */
+  currentTitle: string;
+}
+
+/** 批量分析结果。口径保证数字对得上：total = done + failed + pending。 */
+export interface BatchAnalysisResult {
+  status: BatchAnalysisStatus;
+  /** 总岗位数：本次发现批次内的全部 NEW 岗位。 */
+  total: number;
+  /** 已完成决策数 = autoApply + review + skip（含本次之前已有的有效决策）。 */
+  done: number;
+  autoApply: number;
+  review: number;
+  skip: number;
+  /** 读取 / 决策失败（含已标记失败的，可后续重新处理）。 */
+  failed: number;
+  /** 待处理数（未完成，可继续分析）。 */
+  pending: number;
+}
+
+/** 批量分析前统计（「分析本次新岗位（N）」）。 */
+export interface BatchStats {
+  /** 本次发现批次内的总岗位数。 */
+  total: number;
+  /** 待处理数（需要分析的）。 */
+  pending: number;
+}
+
+/** REVIEW 队列条目（需要用户决定的岗位 + 决策理由）。 */
+export interface ReviewQueueItem {
+  platformJobId: string;
+  title: string;
+  company: string;
+  city: string | null;
+  salary: string | null;
+  location: string | null;
+  decision: JobDecision;
 }

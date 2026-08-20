@@ -45,7 +45,7 @@ const RULES = {
 };
 
 const JD_TEXT =
-  '岗位职责：负责自动化测试开发与质量保障。任职要求：熟练 Python、Pytest、Selenium，熟悉 MySQL。周末双休。';
+  '岗位职责：负责自动化测试开发与质量保障，包括测试用例设计、接口自动化与持续集成流水线维护。任职要求：熟练 Python、Pytest、Selenium，熟悉 MySQL 数据库，了解 Docker 容器化部署。福利：周末双休，五险一金。';
 
 app.whenReady().then(async () => {
   let failures = 0;

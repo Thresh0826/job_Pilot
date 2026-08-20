@@ -153,8 +153,8 @@ function directionHit(job: DecisionInput['job'], rules: DecisionInput['rules']):
   return targets.some((t) => texts.includes(t) || job.title.includes(t) || t.includes(job.title));
 }
 
-/** 核心决策函数：DecisionInput → JobDecision（createdAt/updatedAt 由调用方补充）。 */
-export function decideJob(input: DecisionInput): Omit<JobDecision, 'createdAt' | 'updatedAt'> {
+/** 核心决策函数：DecisionInput → JobDecision（createdAt/updatedAt/userAction 由调用方补充）。 */
+export function decideJob(input: DecisionInput): Omit<JobDecision, 'createdAt' | 'updatedAt' | 'userAction'> {
   const { job, profile, rules } = input;
 
   const violations: string[] = [];

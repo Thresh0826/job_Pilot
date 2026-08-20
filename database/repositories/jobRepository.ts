@@ -48,12 +48,12 @@ const INSERT_SQL = `
     platform, platform_job_id, title, company, salary, location, city, district,
     business_district, industry, experience, degree, company_size, company_stage,
     job_labels, skills, welfare, recruiter_name, recruiter_title, recruiter_active_status,
-    job_url, company_url, source_metadata, status, first_seen_at, last_seen_at
+    job_url, company_url, source_metadata, status, first_seen_at, last_seen_at, discovered_batch_at
   ) VALUES (
     @platform, @platform_job_id, @title, @company, @salary, @location, @city, @district,
     @business_district, @industry, @experience, @degree, @company_size, @company_stage,
     @job_labels, @skills, @welfare, @recruiter_name, @recruiter_title, @recruiter_active_status,
-    @job_url, @company_url, @source_metadata, 'NEW', @first_seen_at, @last_seen_at
+    @job_url, @company_url, @source_metadata, 'NEW', @first_seen_at, @last_seen_at, @discovered_batch_at
   )
   ON CONFLICT(platform, platform_job_id) DO UPDATE SET
     title = excluded.title,
@@ -86,9 +86,12 @@ export interface UpsertJobsSummary {
   skipped: number;
 }
 
-/** 批量 upsert 搜索得到的岗位；返回 新增 / 更新 / 跳过（无 platformJobId）数量。 */
-export function upsertJobs(jobs: Job[]): UpsertJobsSummary {
+/** 批量 upsert 搜索得到的岗位；返回 新增 / 更新 / 跳过（无 platformJobId）数量。
+ *  options.batchAt：本次搜索运行的开始时间戳（V0.4-C 批次语义：一次搜索/一次搜索计划 = 一批）；
+ *  缺省用当前时间。仅首次发现（INSERT）写入批次时间戳。 */
+export function upsertJobs(jobs: Job[], options?: { batchAt?: string }): UpsertJobsSummary {
   const now = new Date().toISOString();
+  const batchAt = options?.batchAt ?? now;
   const stmt = getDb().prepare(INSERT_SQL);
   const summary: UpsertJobsSummary = { inserted: 0, updated: 0, skipped: 0 };
 
@@ -141,6 +144,8 @@ export function upsertJobs(jobs: Job[]): UpsertJobsSummary {
       source_metadata: jsonOrNull(job.sourceMetadata),
       first_seen_at: now,
       last_seen_at: now,
+      // V0.4-C：一次搜索运行 = 一个发现批次；INSERT 写入运行开始时间戳，重复发现（UPDATE）不更新。
+      discovered_batch_at: batchAt,
     };
     stmt.run(params);
     if (existingKeys.has(key)) {
@@ -220,4 +225,36 @@ export function getJobDecisionSource(platform: string, platformJobId: string): J
     )
     .get(platform, platformJobId);
   return row ?? null;
+}
+
+/* ------------------------------------------------------------------ */
+/* V0.4-C 批量分析支持                                                 */
+/* ------------------------------------------------------------------ */
+
+/** 最近一次“有新增发现”的批次时间戳（无任何新增发现时返回 null）。 */
+export function getLatestDiscoveryBatchAt(platform: string): string | null {
+  const row = getDb()
+    .prepare<[string], { batch_at: string | null }>(
+      'SELECT MAX(discovered_batch_at) AS batch_at FROM jobs WHERE platform = ?',
+    )
+    .get(platform);
+  return row?.batch_at ?? null;
+}
+
+/** 标记批量分析失败（避免同一岗位每次批量运行都无限重试）。 */
+export function markAnalysisFailed(platform: string, platformJobId: string): void {
+  getDb()
+    .prepare<[string, string]>(
+      "UPDATE jobs SET analysis_failed_at = datetime('now') WHERE platform = ? AND platform_job_id = ?",
+    )
+    .run(platform, platformJobId);
+}
+
+/** 清除失败标记（分析成功后调用，使岗位可被再次处理）。 */
+export function clearAnalysisFailed(platform: string, platformJobId: string): void {
+  getDb()
+    .prepare<[string, string]>(
+      'UPDATE jobs SET analysis_failed_at = NULL WHERE platform = ? AND platform_job_id = ?',
+    )
+    .run(platform, platformJobId);
 }

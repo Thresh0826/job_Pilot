@@ -139,6 +139,8 @@ export function runMigrations(db: Database.Database): void {
       status TEXT NOT NULL DEFAULT 'NEW',
       first_seen_at TEXT NOT NULL,
       last_seen_at TEXT NOT NULL,
+      discovered_batch_at TEXT,
+      analysis_failed_at TEXT,
       UNIQUE (platform, platform_job_id)
     );
 
@@ -181,11 +183,18 @@ export function runMigrations(db: Database.Database): void {
       rule_violations_json TEXT NOT NULL DEFAULT '[]',
       reason TEXT NOT NULL DEFAULT '',
       context_hash TEXT NOT NULL DEFAULT '',
+      user_action TEXT NOT NULL DEFAULT 'NONE',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE (platform, platform_job_id)
     );
   `);
+
+  // V0.4-C 增量迁移：为已存在的 job_decisions 表补充 user_action 列。
+  const decisionColumns = db.prepare('PRAGMA table_info(job_decisions)').all() as { name: string }[];
+  if (decisionColumns.length > 0 && !decisionColumns.some((c) => c.name === 'user_action')) {
+    db.exec("ALTER TABLE job_decisions ADD COLUMN user_action TEXT NOT NULL DEFAULT 'NONE'");
+  }
 
   // V0.4-A 增量迁移：为已存在的 candidate_profiles 表补充 parse_warnings 列。
   const profileColumns = db.prepare('PRAGMA table_info(candidate_profiles)').all() as { name: string }[];
@@ -197,6 +206,15 @@ export function runMigrations(db: Database.Database): void {
   const columns = db.prepare('PRAGMA table_info(platform_accounts)').all() as { name: string }[];
   if (!columns.some((c) => c.name === 'last_checked_at')) {
     db.exec('ALTER TABLE platform_accounts ADD COLUMN last_checked_at TEXT');
+  }
+
+  // V0.4-C 增量迁移：为 jobs 补充「发现批次」与「批量分析失败标记」。
+  const jobColumns = db.prepare('PRAGMA table_info(jobs)').all() as { name: string }[];
+  if (!jobColumns.some((c) => c.name === 'discovered_batch_at')) {
+    db.exec('ALTER TABLE jobs ADD COLUMN discovered_batch_at TEXT');
+  }
+  if (!jobColumns.some((c) => c.name === 'analysis_failed_at')) {
+    db.exec('ALTER TABLE jobs ADD COLUMN analysis_failed_at TEXT');
   }
 
   seedDefaults(db);

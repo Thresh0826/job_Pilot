@@ -7,7 +7,15 @@ import {
 } from '../../shared/settings';
 import type { ResumeRecord } from '../../core/resume';
 import type { CandidateProfile, CandidateSnapshot } from '../../core/candidate';
-import type { DecisionRules, JobDecisionView } from '../../core/decision';
+import type {
+  BatchAnalysisResult,
+  BatchStats,
+  DecisionAction,
+  DecisionRules,
+  JobDecision,
+  JobDecisionView,
+  ReviewQueueItem,
+} from '../../core/decision';
 import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
 import type { JobTarget, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 import { getDataDir } from '../../database/database';
@@ -34,7 +42,14 @@ import {
   getDecisionRules,
   getJobDecision,
   saveDecisionRules,
+  updateJobDecisionAction,
 } from './services/decisionService';
+import {
+  cancelActiveBatch,
+  getBatchStats,
+  runBatchAnalysis,
+} from './services/batchDecisionService';
+import { getReviewQueue } from '../../database/repositories/decisionRepository';
 
 function buildBootstrap(): BootstrapData {
   return {
@@ -201,4 +216,43 @@ export function registerIpc(): void {
     }
     return analyzeJobDecision(platform, platformJobId);
   });
+
+  ipcMain.handle(IPC.RunBatchAnalysis, async (event, platform: unknown): Promise<BatchAnalysisResult> => {
+    if (typeof platform !== 'string' || !platform) throw new Error('无效的平台。');
+    const sender = event.sender;
+    return runBatchAnalysis(platform, {
+      onProgress: (progress) => {
+        if (!sender.isDestroyed()) sender.send(IPC.BatchAnalysisProgress, progress);
+      },
+    });
+  });
+
+  ipcMain.handle(IPC.CancelBatchAnalysis, (): void => {
+    cancelActiveBatch();
+  });
+
+  ipcMain.handle(IPC.GetBatchStats, (_event, platform: unknown): BatchStats => {
+    if (typeof platform !== 'string' || !platform) return { total: 0, pending: 0 };
+    return getBatchStats(platform);
+  });
+
+  ipcMain.handle(IPC.GetReviewQueue, (_event, platform: unknown): ReviewQueueItem[] => {
+    if (typeof platform !== 'string' || !platform) return [];
+    return getReviewQueue(platform);
+  });
+
+  ipcMain.handle(
+    IPC.UpdateJobDecisionAction,
+    (_event, platform: unknown, platformJobId: unknown, action: unknown): JobDecisionView => {
+      if (typeof platform !== 'string' || typeof platformJobId !== 'string' || !platformJobId) {
+        throw new Error('无效的岗位标识。');
+      }
+      const decision: JobDecision | null = updateJobDecisionAction(
+        platform,
+        platformJobId,
+        action as DecisionAction,
+      );
+      return { decision, stale: false, staleReasons: [] };
+    },
+  );
 }

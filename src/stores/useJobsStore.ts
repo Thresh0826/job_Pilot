@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching';
+import type { BatchAnalysisProgress, BatchAnalysisResult } from '../../core/decision';
 import type { SearchPlanProgress, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 
 /**
@@ -35,6 +36,14 @@ interface JobsState {
   setDetailResult: (r: JobDetailResult | null) => void;
   loadingDetail: boolean;
   setLoadingDetail: (v: boolean) => void;
+
+  /** V0.4-C 批量决策状态（切换模块后保持）。 */
+  batchProgress: BatchAnalysisProgress | null;
+  setBatchProgress: (p: BatchAnalysisProgress | null) => void;
+  batchResult: BatchAnalysisResult | null;
+  setBatchResult: (r: BatchAnalysisResult | null) => void;
+  runningBatch: boolean;
+  setRunningBatch: (v: boolean) => void;
 }
 
 export const useJobsStore = create<JobsState>((set) => ({
@@ -71,4 +80,11 @@ export const useJobsStore = create<JobsState>((set) => ({
   setDetailResult: (detailResult) => set({ detailResult }),
   loadingDetail: false,
   setLoadingDetail: (loadingDetail) => set({ loadingDetail }),
+
+  batchProgress: null,
+  setBatchProgress: (batchProgress) => set({ batchProgress }),
+  batchResult: null,
+  setBatchResult: (batchResult) => set({ batchResult }),
+  runningBatch: false,
+  setRunningBatch: (runningBatch) => set({ runningBatch }),
 }));

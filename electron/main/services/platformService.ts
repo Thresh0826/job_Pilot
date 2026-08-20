@@ -87,12 +87,17 @@ export async function disconnectBoss(): Promise<PlatformActionResult> {
 }
 
 /** V0.3-A/C1：BOSS 搜索（多批捕获）→ 成功后岗位进入本地库（C2 upsert），返回时标注本地状态。 */
-export async function searchBossJobs(input: JobSearchQuery): Promise<JobSearchResult> {
+export async function searchBossJobs(
+  input: JobSearchQuery,
+  options?: { batchAt?: string },
+): Promise<JobSearchResult> {
   logger.info('platform', `searchBossJobs keyword=${input.keyword} city=${input.city}`);
   try {
+    // V0.4-C：一次搜索运行 = 一个发现批次；批内岗位共享运行开始时间戳（搜索计划由计划开始时间传入）。
+    const batchAt = options?.batchAt ?? new Date().toISOString();
     const result = await boss.searchJobs(input);
     if (result.status === 'SUCCESS' && result.jobs.length > 0) {
-      const summary = upsertJobs(result.jobs);
+      const summary = upsertJobs(result.jobs, { batchAt });
       logger.info(
         'platform',
         `jobs upserted inserted=${summary.inserted} updated=${summary.updated} skipped=${summary.skipped}`,

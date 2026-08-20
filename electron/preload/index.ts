@@ -35,6 +35,12 @@ const IPC = {
   SaveDecisionRules: 'jobpilot:saveDecisionRules',
   GetJobDecision: 'jobpilot:getJobDecision',
   AnalyzeJobDecision: 'jobpilot:analyzeJobDecision',
+  RunBatchAnalysis: 'jobpilot:runBatchAnalysis',
+  CancelBatchAnalysis: 'jobpilot:cancelBatchAnalysis',
+  BatchAnalysisProgress: 'jobpilot:batchAnalysisProgress',
+  GetBatchStats: 'jobpilot:getBatchStats',
+  GetReviewQueue: 'jobpilot:getReviewQueue',
+  UpdateJobDecisionAction: 'jobpilot:updateJobDecisionAction',
 } as const;
 
 const api: JobPilotApi = {
@@ -63,6 +69,17 @@ const api: JobPilotApi = {
   saveDecisionRules: (rules) => ipcRenderer.invoke(IPC.SaveDecisionRules, rules),
   getJobDecision: (platform, platformJobId) => ipcRenderer.invoke(IPC.GetJobDecision, platform, platformJobId),
   analyzeJobDecision: (platform, platformJobId) => ipcRenderer.invoke(IPC.AnalyzeJobDecision, platform, platformJobId),
+  runBatchAnalysis: (platform) => ipcRenderer.invoke(IPC.RunBatchAnalysis, platform),
+  cancelBatchAnalysis: () => ipcRenderer.invoke(IPC.CancelBatchAnalysis),
+  getBatchStats: (platform) => ipcRenderer.invoke(IPC.GetBatchStats, platform),
+  getReviewQueue: (platform) => ipcRenderer.invoke(IPC.GetReviewQueue, platform),
+  updateJobDecisionAction: (platform, platformJobId, action) =>
+    ipcRenderer.invoke(IPC.UpdateJobDecisionAction, platform, platformJobId, action),
+  onBatchAnalysisProgress: (cb) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => cb(progress as never);
+    ipcRenderer.on(IPC.BatchAnalysisProgress, listener);
+    return () => ipcRenderer.removeListener(IPC.BatchAnalysisProgress, listener);
+  },
   onSearchPlanProgress: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, progress: unknown) => cb(progress as never);
     ipcRenderer.on(IPC.SearchPlanProgress, listener);

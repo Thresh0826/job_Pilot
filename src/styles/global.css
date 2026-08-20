@@ -1988,6 +1988,93 @@ button {
 }
 
 /* ------------------------------------------------------------------
+   V0.4-C 批量决策（汇总 + REVIEW 队列）
+   ------------------------------------------------------------------ */
+.batch-stats {
+  display: flex;
+  gap: 28px;
+  font-size: 13px;
+  color: var(--jp-text-secondary);
+}
+
+.batch-stats b {
+  font-size: 18px;
+  margin-left: 4px;
+}
+
+.batch-paused {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-attention-soft);
+  border: 1px solid rgb(217 148 50 / 30%);
+  color: var(--jp-attention);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.review-queue {
+  border-top: 1px solid var(--jp-border);
+  padding-top: 14px;
+}
+
+.review-queue__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.review-queue__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--jp-text-primary);
+}
+
+.review-queue__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-queue__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--jp-border);
+  border-radius: var(--jp-radius-md);
+  background: var(--jp-attention-soft);
+}
+
+.review-queue__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-queue__title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-queue__reason {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--jp-text-secondary);
+  line-height: 1.6;
+}
+
+.review-queue__actions {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+/* ------------------------------------------------------------------
    Onboarding (guided setup)
    ------------------------------------------------------------------ */
 .wizard {

@@ -1,7 +1,15 @@
 import { z } from 'zod';
 import type { ResumeRecord } from '../core/resume';
 import type { CandidateProfile, CandidateSnapshot } from '../core/candidate';
-import type { DecisionRules, JobDecisionView } from '../core/decision';
+import type {
+  BatchAnalysisProgress,
+  BatchAnalysisResult,
+  BatchStats,
+  DecisionAction,
+  DecisionRules,
+  JobDecisionView,
+  ReviewQueueItem,
+} from '../core/decision';
 import type { Job, JobDetailResult, JobSearchQuery, JobSearchResult } from '../core/matching';
 import type {
   JobTarget,
@@ -53,6 +61,12 @@ export const IPC = {
   SaveDecisionRules: 'jobpilot:saveDecisionRules',
   GetJobDecision: 'jobpilot:getJobDecision',
   AnalyzeJobDecision: 'jobpilot:analyzeJobDecision',
+  RunBatchAnalysis: 'jobpilot:runBatchAnalysis',
+  CancelBatchAnalysis: 'jobpilot:cancelBatchAnalysis',
+  BatchAnalysisProgress: 'jobpilot:batchAnalysisProgress',
+  GetBatchStats: 'jobpilot:getBatchStats',
+  GetReviewQueue: 'jobpilot:getReviewQueue',
+  UpdateJobDecisionAction: 'jobpilot:updateJobDecisionAction',
 } as const;
 
 /** 岗位搜索 IPC 输入校验。 */
@@ -119,6 +133,18 @@ export interface JobPilotApi {
   getJobDecision(platform: string, platformJobId: string): Promise<JobDecisionView>;
   /** 分析 / 重新分析岗位（覆盖旧结果）。 */
   analyzeJobDecision(platform: string, platformJobId: string): Promise<JobDecisionView>;
+  /** V0.4-C：批量分析全部 NEW 岗位（含进度事件）。 */
+  runBatchAnalysis(platform: string): Promise<BatchAnalysisResult>;
+  /** 停止当前批量分析（已完成结果保留）。 */
+  cancelBatchAnalysis(): Promise<void>;
+  /** 批量分析前统计（总岗位 / 待处理，用于「分析本次新岗位（N）」）。 */
+  getBatchStats(platform: string): Promise<BatchStats>;
+  /** 订阅批量分析进度；返回取消订阅函数。 */
+  onBatchAnalysisProgress(cb: (progress: BatchAnalysisProgress) => void): () => void;
+  /** REVIEW 队列（需要用户决定的岗位）。 */
+  getReviewQueue(platform: string): Promise<ReviewQueueItem[]>;
+  /** 用户处理 REVIEW：ALLOW / SKIP / NONE（仅改变决策状态）。 */
+  updateJobDecisionAction(platform: string, platformJobId: string, action: DecisionAction): Promise<JobDecisionView>;
   /** 从拖拽的 File 对象读取绝对路径（依赖 Electron webUtils）。 */
   getPathForFile(file: File): string;
 }

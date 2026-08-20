@@ -4,6 +4,7 @@ import type { JobTarget } from '../../core/searchPlan';
 import { Button, Input } from '../components/ui';
 import { PageHeader } from '../components/PageHeader';
 import { JobDecisionPanel } from '../components/JobDecisionPanel';
+import { BatchDecisionPanel } from '../components/BatchDecisionPanel';
 import { useJobsStore } from '../stores/useJobsStore';
 import { formatJdText } from '../../core/jdFormat';
 
@@ -320,6 +321,9 @@ export default function Jobs() {
           </div>
         </div>
       </div>
+
+      {/* V0.4-C 批量决策 */}
+      <BatchDecisionPanel />
 
       {/* 工作台：岗位列表 + 岗位详情 */}
       <div className="jobs-workbench">

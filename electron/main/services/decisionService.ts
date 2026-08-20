@@ -1,16 +1,19 @@
 import crypto from 'node:crypto';
 import type { CandidateProfile } from '../../../core/candidate';
 import {
+  MIN_JD_LENGTH,
   createDefaultDecisionRules,
   decisionRulesSchema,
+  type DecisionAction,
   type DecisionInput,
   type DecisionJobInput,
   type DecisionRules,
+  type JobDecision,
   type JobDecisionView,
 } from '../../../core/decision';
 import { decideJob } from '../../../core/decision/engine';
 import * as decisionRepo from '../../../database/repositories/decisionRepository';
-import { getJobDecisionSource } from '../../../database/repositories/jobRepository';
+import { clearAnalysisFailed, getJobDecisionSource } from '../../../database/repositories/jobRepository';
 import { getCandidateSnapshot } from './candidateService';
 
 /**
@@ -116,6 +119,9 @@ export function analyzeJobDecision(platform: string, platformJobId: string): Job
   const job = buildJobInput(platform, platformJobId);
   if (!job) throw new Error('岗位不存在，请先读取岗位详情。');
   if (!job.jdText) throw new Error('岗位缺少完整 JD，请先打开岗位详情。');
+  if (job.jdText.length < MIN_JD_LENGTH) {
+    throw new Error('岗位详情内容不完整（可能未正确加载），请重新打开详情后重试。');
+  }
 
   const profile = currentProfile();
   if (!profile) throw new Error('还没有候选人资料，请先在「我的资料」上传简历并确认。');
@@ -125,6 +131,8 @@ export function analyzeJobDecision(platform: string, platformJobId: string): Job
   const base = decideJob(input);
   const contextHash = buildContextHash(job, profile, rules);
   const decision = decisionRepo.upsertDecision({ ...base, contextHash });
+  // 分析成功 → 清除批量失败标记（失败岗位可通过单岗位分析重试）
+  clearAnalysisFailed(platform, platformJobId);
   return { decision, stale: false, staleReasons: [] };
 }
 
@@ -140,4 +148,32 @@ export function saveDecisionRules(rules: DecisionRules): DecisionRules {
     throw new Error(`求职规则校验失败：${message}`);
   }
   return decisionRepo.saveDecisionRules(parsed.data);
+}
+
+/**
+ * 已有决策在当前上下文下是否仍然有效（V0.4-C 批量分析判定是否需重新处理）。
+ * 任一输入缺失（无 JD / 无资料）→ 视为无效（需要重新分析）。
+ */
+export function isDecisionValidFor(platform: string, platformJobId: string, savedContextHash: string): boolean {
+  if (!savedContextHash) return false;
+  const job = buildJobInput(platform, platformJobId);
+  const profile = currentProfile();
+  const rules = currentRules();
+  if (!job || !job.jdText || !profile) return false;
+  return staleReasons(savedContextHash, buildContextHash(job, profile, rules)).length === 0;
+}
+
+/**
+ * 用户对 REVIEW 的处理（允许投递 / 跳过 / 撤销）。仅改变决策状态，不真正投递。
+ * 返回更新后的决策；岗位无决策时返回 null。
+ */
+export function updateJobDecisionAction(
+  platform: string,
+  platformJobId: string,
+  action: DecisionAction,
+): JobDecision | null {
+  if (action !== 'ALLOW' && action !== 'SKIP' && action !== 'NONE') {
+    throw new Error('无效的操作。');
+  }
+  return decisionRepo.updateDecisionAction(platform, platformJobId, action);
 }

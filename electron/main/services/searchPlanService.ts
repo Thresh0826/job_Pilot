@@ -50,7 +50,12 @@ export async function runSearchPlan(
   tasks: SearchTask[],
   options: SearchPlanRunOptions = {},
 ): Promise<SearchPlanResult> {
-  const searchFn = options.searchFn ?? (async (q) => searchBossJobs({ keyword: q.keyword, city: q.city }));
+  // V0.4-C：一次搜索计划（第一个任务到最后一个任务）= 一个发现批次，
+  // 批内所有任务新发现的岗位共享计划开始时间戳。
+  const runStartAt = new Date().toISOString();
+  const searchFn =
+    options.searchFn ??
+    (async (q) => searchBossJobs({ keyword: q.keyword, city: q.city }, { batchAt: runStartAt }));
   const onProgress = options.onProgress;
   const total = tasks.length;
 
