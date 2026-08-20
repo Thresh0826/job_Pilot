@@ -117,11 +117,14 @@ SQLite 是 JobPilot 当前主要结构化本地数据库。
 用户档案
 简历信息
 候选人资料（candidate_profiles：简历解析出的结构化资料 + 用户人工修正，V0.4-A）
+求职规则（job_decision_rules：目标岗位/城市/最低薪资/外包/单双休/学历经验容忍/排除词，V0.4-B）
+岗位决策（job_decisions：AUTO_APPLY/REVIEW/SKIP + 匹配/风险/不确定项 + user_action + 上下文指纹，V0.4-B/C）
 求职偏好
 AI 权限
+AI 模型配置（ai_model_provider / ai_api_key / ai_model_name，仅存本地，V0.4-D）
 通知偏好
 招聘平台账号元数据
-岗位历史（jobs：平台岗位唯一键 + NEW/SEEN + first_seen_at / last_seen_at）
+岗位历史（jobs：平台唯一键 + NEW/SEEN + 发现批次 discovered_batch_at + 批量失败标记 analysis_failed_at）
 求职目标（job_seek_target：目标岗位 / 相关关键词 / 目标城市，V0.3-C3）
 ```
 
@@ -392,13 +395,26 @@ CONNECTED
 
 ## 十四、AI 架构
 
-V0.1 尚未正式实现 AI 能力。
+AI 能力通过独立 Provider 抽象接入（`core/decision/provider.ts`），不把核心业务强绑定某一个模型提供商。
 
-后续 AI 应通过独立 Provider / Service 抽象接入。
+V0.4-D 起岗位决策支持两种实现，输入输出契约一致：
 
-不要把核心业务强绑定某一个模型提供商。
+```text
+本地可解释规则引擎（core/decision/engine.ts，确定性、无外部依赖）
+    vs
+LLM Provider（electron/main/services/llm/，当前 DeepSeek deepseek-chat）
+    ↓
+统一决策结果：AUTO_APPLY / REVIEW / SKIP + 匹配点 / 风险 / 不确定项 / 简短理由
+```
 
-未来 AI 能力可能包括：
+- 配置了 API Key → 语义判断由 LLM 完成；未配置或 LLM 调用失败 → 自动回退本地规则引擎（可用性保证）。
+- **硬规则护栏**：用户明确规则（城市 / 薪资 / 外包 / 单双休 / 排除词 / 学历经验严格模式）优先级高于任何 AI 判断，
+  LLM 结果若违反 → 强制 SKIP。
+- 决策输入只使用：用户确认后的 Candidate Profile、求职规则、岗位完整 JD。
+- AI 对用户经历、技能和背景的回答必须来源于真实数据（用户档案 / 简历 / 配置），不得编造；
+  「简历没写」≠「用户不会」→ 信息显著影响判断时进入 REVIEW。
+
+未来 AI 能力（沿用 Provider 抽象）：
 
 ```text
 简历理解
@@ -409,13 +425,28 @@ JD 总结
 每日求职总结
 ```
 
-AI 对用户经历、技能和背景的回答必须来源于真实：
+---
 
-* 用户档案
-* 简历
-* 配置数据
+## 十四·五、岗位决策流程（V0.4-B/C/D）
 
-不得编造求职者不存在的经历或能力。
+```text
+Candidate Profile + 求职规则 + 岗位完整 JD
+    ↓ 硬规则护栏（用户明确条件优先，违反 → 强制 SKIP）
+    ↓ 语义判断（LLM Provider 或本地规则引擎）
+    ↓
+AUTO_APPLY / REVIEW / SKIP + 匹配点 / 风险 / 不确定项 / 简短理由
+    ↓ job_decisions 持久化（platform + platformJobId 唯一）
+```
+
+- **持久化与过期**：决策保存 `context_hash`（profile + 规则 + JD 三部分指纹）；
+  资料 / 规则 / JD 变化 → 旧结果标记「可能已过期」，需要重新分析；用户可主动重新分析。
+- **REVIEW 队列**：只展示「决策仍有效且未处理」的 REVIEW 岗位；用户可「允许投递（ALLOW）/ 跳过（SKIP）」，
+  `user_action` 仅改变状态，不真正投递。
+- **批量分析**：一次搜索运行 = 一个发现批次（`discovered_batch_at`）；
+  已有完整 JD 直接决策、缺失有节制地顺序读取；失败岗位标记 `analysis_failed_at`（计入 FAILED，不误算 SKIP）；
+  平台安全验证 / 登录异常 → 单岗位跳过继续，不绕过平台验证。
+- **统一状态模型**（统计 / 队列 / 分类严格一致）：
+  `总岗位 = 待分析 + 适合自动投递 + 需要确认 + 已跳过 + 失败`
 
 ---
 
