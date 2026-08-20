@@ -186,6 +186,8 @@ export interface NewJobWithDecisionRow {
 }
 
 export function getNewJobsWithDecisions(platform: string, batchAt?: string | null): NewJobWithDecisionRow[] {
+  // 批次内全部岗位（不按 status 过滤：成功读取详情的岗位已 SEEN 但仍属该批次，
+  // 统计与「是否需重新处理」都应按批次全量计算）。
   const rows = getDb()
     .prepare<
       [string, ...string[]],
@@ -199,7 +201,6 @@ export function getNewJobsWithDecisions(platform: string, batchAt?: string | nul
        LEFT JOIN job_decisions d
          ON d.platform = j.platform AND d.platform_job_id = j.platform_job_id
        WHERE j.platform = ?
-         AND j.status = 'NEW'
          ${batchAt ? 'AND j.discovered_batch_at = ?' : ''}
        ORDER BY j.id ASC`,
     )

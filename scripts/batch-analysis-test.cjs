@@ -115,12 +115,12 @@ app.whenReady().then(async () => {
     fetchCalls = [];
     const r2 = await batchService.runBatchAnalysis('BOSS', opts);
     check('再次运行不重试（fetchCalls 为空）', fetchCalls.length === 0, JSON.stringify(fetchCalls));
-    check('done=2（A/B）failed=1（D 已标记）pending=0', r2.done === 2 && r2.failed === 1 && r2.pending === 0 && r2.total === 3, JSON.stringify(r2));
+    check('批次全量统计：done=3（A/B/C 有效决策）failed=1（D 已标记）pending=0', r2.total === 4 && r2.done === 3 && r2.failed === 1 && r2.pending === 0, JSON.stringify(r2));
 
     // ---- 3. 规则变化 → 过期 → 重新分析 ----
     decisionService.saveDecisionRules({ ...RULES, targetCities: ['苏州'] });
     const r3 = await batchService.runBatchAnalysis('BOSS', opts);
-    check('规则变化后重新分析（A/B → SKIP）', r3.done === 2 && r3.skip === 2, JSON.stringify(r3));
+    check('规则变化后重新分析（批次全量：A/B/C → SKIP）', r3.total === 4 && r3.done === 3 && r3.skip === 3, JSON.stringify(r3));
     decisionService.saveDecisionRules(RULES);
 
     // ---- 4. 批次隔离：只处理最近批次 ----
@@ -162,20 +162,59 @@ app.whenReady().then(async () => {
     });
     check('停止 → CANCELLED 且保留已完成', r6.status === 'CANCELLED' && r6.done === 1 && r6.pending === 1, JSON.stringify(r6));
     const r6b = await batchService.runBatchAnalysis('BOSS', opts);
-    check('继续分析 → 只处理剩余岗位（jf1 已 SEEN）', r6b.status === 'COMPLETED' && r6b.done === 1 && r6b.pending === 0, JSON.stringify(r6b));
+    check('继续分析 → 批次全量完成（jf1 有效决策不重复、jf2 补齐）', r6b.status === 'COMPLETED' && r6b.total === 2 && r6b.done === 2 && r6b.pending === 0, JSON.stringify(r6b));
 
-    // ---- 7. REVIEW 队列 + 用户处理（e1 为方向不符的 REVIEW）----
-    const queue = decisionRepo.getReviewQueue('BOSS');
+    // ---- 7. REVIEW 队列 + 用户处理（e1 为方向不符的 REVIEW，走服务端口径）----
+    const queue = decisionService.getReviewQueue('BOSS');
     check('REVIEW 队列包含 e1（未处理）', queue.some((q) => q.platformJobId === 'e1') && queue.every((q) => q.decision.userAction === 'NONE'), JSON.stringify(queue.map((q) => q.platformJobId)));
     const updated = decisionService.updateJobDecisionAction('BOSS', 'e1', 'ALLOW');
     check('允许投递 → userAction=ALLOW（verdict 不变）', updated !== null && updated.userAction === 'ALLOW' && updated.verdict === 'REVIEW');
-    check('处理后不在队列', !decisionRepo.getReviewQueue('BOSS').some((q) => q.platformJobId === 'e1'));
+    check('处理后不在队列', !decisionService.getReviewQueue('BOSS').some((q) => q.platformJobId === 'e1'));
     decisionService.updateJobDecisionAction('BOSS', 'e1', 'NONE');
-    check('撤销 → 回到队列', decisionRepo.getReviewQueue('BOSS').some((q) => q.platformJobId === 'e1'));
+    check('撤销 → 回到队列', decisionService.getReviewQueue('BOSS').some((q) => q.platformJobId === 'e1'));
+
+    // ---- 7b. 统计一致性：顶部统计（getBatchStats）与 REVIEW 队列 / 分类严格一致 ----
+    // 最近批次（batch-4：jf1/jf2 已 AUTO_APPLY，且已 SEEN）作为统计基准
+    let st = batchService.getBatchStats('BOSS');
+    check('批量后统计：total=2 auto=2 review=0 skip=0 failed=0 pending=0', st.total === 2 && st.autoApply === 2 && st.review === 0 && st.skip === 0 && st.failed === 0 && st.pending === 0, JSON.stringify(st));
+    // 构造新批次：一个 REVIEW（方向不符）+ 一个 AUTO
+    jobRepo.upsertJobs([makeJob('k1', { title: '新媒体运营' })]);
+    jobRepo.upsertJobs([makeJob('k2')]);
+    setBatch(['k1', 'k2'], 'batch-6');
+    setJd('k1', '岗位职责：负责公司新媒体平台（公众号、抖音等）的内容策划与日常运营，包括选题规划、文案撰写、粉丝互动与数据复盘，配合团队完成活动推广。任职要求：熟悉新媒体运营流程，具备一定的内容创作与数据分析能力，有相关实习经验者优先。');
+    setJd('k2', JD_OK);
+    const r7 = await batchService.runBatchAnalysis('BOSS', opts);
+    check('新批次分析：auto=1（k2）review=1（k1）', r7.autoApply === 1 && r7.review === 1 && r7.pending === 0, JSON.stringify(r7));
+    st = batchService.getBatchStats('BOSS');
+    check('统计与批量结果一致', st.total === 2 && st.autoApply === 1 && st.review === 1 && st.skip === 0 && st.failed === 0 && st.pending === 0, JSON.stringify(st));
+    check('统计 review 与队列中本批次岗位一致', st.review === decisionRepo.getReviewQueue('BOSS').filter((q) => q.platformJobId === 'k1').length && decisionRepo.getReviewQueue('BOSS').some((q) => q.platformJobId === 'k1'));
+    // 允许投递 → review-1 / autoApply+1（服务端实时口径）
+    decisionService.updateJobDecisionAction('BOSS', 'k1', 'ALLOW');
+    st = batchService.getBatchStats('BOSS');
+    check('ALLOW 后：review=0 autoApply=2', st.review === 0 && st.autoApply === 2, JSON.stringify(st));
+    check('ALLOW 后本批次岗位不在队列', !decisionRepo.getReviewQueue('BOSS').some((q) => q.platformJobId === 'k1'));
+    // 撤销 + 跳过 → review-1 / skip+1
+    decisionService.updateJobDecisionAction('BOSS', 'k1', 'NONE');
+    decisionService.updateJobDecisionAction('BOSS', 'k1', 'SKIP');
+    st = batchService.getBatchStats('BOSS');
+    check('用户跳过 → review=0 skip=1 autoApply=1', st.review === 0 && st.skip === 1 && st.autoApply === 1, JSON.stringify(st));
+    check('统计恒等：total=auto+review+skip+failed+pending', st.total === st.autoApply + st.review + st.skip + st.failed + st.pending);
+
+    // ---- 7c. 决策过期（规则变化）→ REVIEW 归「待分析」、不在队列；重新分析后回到一致 ----
+    decisionService.updateJobDecisionAction('BOSS', 'k1', 'NONE');
+    decisionService.saveDecisionRules({ ...RULES, targetCities: ['苏州'] }); // 使 k1/k2 决策过期
+    check('过期 REVIEW 不在队列', !decisionService.getReviewQueue('BOSS').some((q) => q.platformJobId === 'k1'));
+    st = batchService.getBatchStats('BOSS');
+    check('过期后归待分析（review=0、pending=2）', st.review === 0 && st.pending === 2 && st.autoApply === 0, JSON.stringify(st));
+    check('过期后恒等式仍成立', st.total === st.pending + st.autoApply + st.review + st.skip + st.failed);
+    decisionService.saveDecisionRules(RULES);
+    await batchService.runBatchAnalysis('BOSS', opts);
+    st = batchService.getBatchStats('BOSS');
+    check('重新分析后统计一致且无待分析', st.pending === 0 && st.total === st.pending + st.autoApply + st.review + st.skip + st.failed, JSON.stringify(st));
 
     // ---- 8. 单岗位分析成功清除失败标记（D 可重试）----
     setJd('jd', JD_OK);
-    const dView = decisionService.analyzeJobDecision('BOSS', 'jd');
+    const dView = await decisionService.analyzeJobDecision('BOSS', 'jd');
     check('单岗位分析成功', dView.decision !== null && dView.decision.verdict === 'AUTO_APPLY');
     const jdRow = db.prepare(`SELECT analysis_failed_at FROM jobs WHERE platform_job_id = 'jd'`).get();
     check('失败标记已清除', jdRow.analysis_failed_at === null, JSON.stringify(jdRow));

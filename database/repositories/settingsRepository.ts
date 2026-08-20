@@ -81,3 +81,31 @@ export function saveBossPlatformStatus(status: PlatformStatus): void {
 export function getPlatformState(): PlatformAccountState {
   return { boss: getBossPlatformStatus().status };
 }
+
+/* ------------------------------------------------------------------ */
+/* V0.4-D AI 模型配置（API Key 仅存本地，禁止提交 Git）                 */
+/* ------------------------------------------------------------------ */
+
+export interface AiModelConfig {
+  /** Provider 标识：'deepseek' 或 ''（未配置）。 */
+  provider: string;
+  /** API Key（本地存储，不入 Git）。 */
+  apiKey: string;
+  /** 模型名（如 deepseek-chat）。 */
+  model: string;
+}
+
+export function getAiModelConfig(): AiModelConfig {
+  return {
+    provider: getSetting('ai_model_provider') ?? '',
+    apiKey: getSetting('ai_api_key') ?? '',
+    model: getSetting('ai_model_name') ?? 'deepseek-chat',
+  };
+}
+
+export function saveAiModelConfig(config: AiModelConfig): AiModelConfig {
+  setSetting('ai_model_provider', config.provider || '');
+  setSetting('ai_api_key', config.apiKey || '');
+  setSetting('ai_model_name', config.model || 'deepseek-chat');
+  return getAiModelConfig();
+}

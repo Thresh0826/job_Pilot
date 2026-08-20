@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { ResumeRecord } from '../core/resume';
 import type { CandidateProfile, CandidateSnapshot } from '../core/candidate';
+import type { AiModelConfig } from '../database/repositories/settingsRepository';
 import type {
   BatchAnalysisProgress,
   BatchAnalysisResult,
@@ -59,6 +60,8 @@ export const IPC = {
   SearchPlanProgress: 'jobpilot:searchPlanProgress',
   GetDecisionRules: 'jobpilot:getDecisionRules',
   SaveDecisionRules: 'jobpilot:saveDecisionRules',
+  GetAiModelConfig: 'jobpilot:getAiModelConfig',
+  SaveAiModelConfig: 'jobpilot:saveAiModelConfig',
   GetJobDecision: 'jobpilot:getJobDecision',
   AnalyzeJobDecision: 'jobpilot:analyzeJobDecision',
   RunBatchAnalysis: 'jobpilot:runBatchAnalysis',
@@ -129,6 +132,9 @@ export interface JobPilotApi {
   /** V0.4-B 岗位决策。 */
   getDecisionRules(): Promise<DecisionRules>;
   saveDecisionRules(rules: DecisionRules): Promise<DecisionRules>;
+  /** V0.4-D AI 模型配置（API Key 仅存本地）。 */
+  getAiModelConfig(): Promise<AiModelConfig>;
+  saveAiModelConfig(config: AiModelConfig): Promise<AiModelConfig>;
   /** 读取已有决策结果（含过期状态，不重新分析）。 */
   getJobDecision(platform: string, platformJobId: string): Promise<JobDecisionView>;
   /** 分析 / 重新分析岗位（覆盖旧结果）。 */

@@ -98,30 +98,53 @@ interface BatchState {
   pending: number;
 }
 
-/** 统计批次内岗位状态（实时 / 完成后共用）。 */
+/**
+ * 统计批次内岗位状态（实时 / 完成后共用）。
+ * 有效状态口径（与 REVIEW 队列、顶部统计严格一致）：
+ * - AUTO_APPLY：verdict AUTO_APPLY，或用户已「允许投递」（user_action=ALLOW）
+ * - REVIEW（需要确认）：verdict REVIEW 且用户未处理（user_action=NONE）
+ * - SKIP：verdict SKIP，或用户已「跳过」（user_action=SKIP）
+ * - FAILED：详情/决策失败标记
+ * - PENDING：无有效决策且未失败标记
+ */
 function computeBatchState(platform: string, rows: NewJobWithDecisionRow[]): BatchState {
   const state: BatchState = { total: rows.length, done: 0, autoApply: 0, review: 0, skip: 0, failed: 0, pending: 0 };
   for (const row of rows) {
     if (row.analysis_failed_at) {
       state.failed += 1;
-    } else if (hasValidDecision(platform, row)) {
-      state.done += 1;
-      if (row.decision_verdict === 'AUTO_APPLY') state.autoApply += 1;
-      else if (row.decision_verdict === 'REVIEW') state.review += 1;
-      else state.skip += 1;
-    } else {
-      state.pending += 1;
+      continue;
     }
+    if (!hasValidDecision(platform, row)) {
+      state.pending += 1;
+      continue;
+    }
+    const action = row.decision_user_action;
+    if (row.decision_verdict === 'SKIP' || action === 'SKIP') {
+      state.skip += 1;
+    } else if (row.decision_verdict === 'AUTO_APPLY' || action === 'ALLOW') {
+      state.autoApply += 1;
+    } else {
+      // verdict REVIEW 且未处理（ALLOW/SKIP 已在上方归入对应分类）
+      state.review += 1;
+    }
+    state.done += 1;
   }
   return state;
 }
 
-/** 批量分析前的统计（「分析本次新岗位（N）」）。 */
+/** 批量分析统计（实时服务端口径，「分析本次新岗位（N）」与顶部汇总共用）。 */
 export function getBatchStats(platform: string): BatchStats {
   const batchAt = getLatestDiscoveryBatchAt(platform);
   const rows = getNewJobsWithDecisions(platform, batchAt);
   const state = computeBatchState(platform, rows);
-  return { total: state.total, pending: state.pending };
+  return {
+    total: state.total,
+    autoApply: state.autoApply,
+    review: state.review,
+    skip: state.skip,
+    failed: state.failed,
+    pending: state.pending,
+  };
 }
 
 /**
@@ -228,7 +251,7 @@ export async function runBatchAnalysis(
 
       // 2. 决策（复用 V0.4-B 分析 + 持久化；短 JD 会在这里被拒绝）
       try {
-        const view = analyzeJobDecision(platform, row.platformJobId);
+        const view = await analyzeJobDecision(platform, row.platformJobId);
         const verdict = view.decision?.verdict;
         state.done += 1;
         state.pending -= 1;

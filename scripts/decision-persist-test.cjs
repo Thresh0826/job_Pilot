@@ -106,7 +106,7 @@ app.whenReady().then(async () => {
     jobRepo.saveJobDetailSeen('BOSS', 'ej1', JD_TEXT);
 
     // ---- 3. 分析 → 持久化 ----
-    const v1 = decisionService.analyzeJobDecision('BOSS', 'ej1');
+    const v1 = await decisionService.analyzeJobDecision('BOSS', 'ej1');
     check('分析结果 AUTO_APPLY', v1.decision !== null && v1.decision.verdict === 'AUTO_APPLY', v1.decision ? `${v1.decision.verdict} ${v1.decision.reason}` : 'null');
     check('分析后不 stale', v1.stale === false);
 
@@ -124,7 +124,7 @@ app.whenReady().then(async () => {
     check('过期原因含求职规则', v3.staleReasons.some((r) => r.includes('求职规则')), JSON.stringify(v3.staleReasons));
 
     // ---- 6. 重新分析 → 新规则生效（城市不符 → SKIP）----
-    const v4 = decisionService.analyzeJobDecision('BOSS', 'ej1');
+    const v4 = await decisionService.analyzeJobDecision('BOSS', 'ej1');
     check('重新分析后不 stale', v4.stale === false);
     check('新规则生效（城市不符 → SKIP）', v4.decision !== null && v4.decision.verdict === 'SKIP', v4.decision ? `${v4.decision.verdict} ${JSON.stringify(v4.decision.ruleViolations)}` : 'null');
     check('SKIP 给出违反的规则', v4.decision !== null && v4.decision.ruleViolations.length > 0);
@@ -149,7 +149,7 @@ app.whenReady().then(async () => {
     check('资料删除 → 旧结果过期', v7.stale === true && v7.staleReasons.some((r) => r.includes('不存在')), JSON.stringify(v7.staleReasons));
     let threw = false;
     try {
-      decisionService.analyzeJobDecision('BOSS', 'ej1');
+      await decisionService.analyzeJobDecision('BOSS', 'ej1');
     } catch (err) {
       threw = /资料/.test(String(err.message));
     }

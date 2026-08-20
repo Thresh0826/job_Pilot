@@ -20,6 +20,11 @@ import type { Job, JobDetailResult, JobSearchResult } from '../../core/matching'
 import type { JobTarget, SearchPlanResult, SearchTask } from '../../core/searchPlan';
 import { getDataDir } from '../../database/database';
 import { getRunMode } from '../../database/repositories/settingsRepository';
+import {
+  getAiModelConfig,
+  saveAiModelConfig,
+  type AiModelConfig,
+} from '../../database/repositories/settingsRepository';
 import * as settingsService from '../../database/services/settingsService';
 import { importResumeFromPath, pickResume, removeResume } from './services/resumeService';
 import {
@@ -41,6 +46,7 @@ import {
   analyzeJobDecision,
   getDecisionRules,
   getJobDecision,
+  getReviewQueue,
   saveDecisionRules,
   updateJobDecisionAction,
 } from './services/decisionService';
@@ -49,7 +55,6 @@ import {
   getBatchStats,
   runBatchAnalysis,
 } from './services/batchDecisionService';
-import { getReviewQueue } from '../../database/repositories/decisionRepository';
 
 function buildBootstrap(): BootstrapData {
   return {
@@ -203,6 +208,18 @@ export function registerIpc(): void {
     return saveDecisionRules(raw as DecisionRules);
   });
 
+  ipcMain.handle(IPC.GetAiModelConfig, (): AiModelConfig => getAiModelConfig());
+
+  ipcMain.handle(IPC.SaveAiModelConfig, (_event, raw: unknown): AiModelConfig => {
+    if (!raw || typeof raw !== 'object') throw new Error('无效的模型配置。');
+    const cfg = raw as Partial<AiModelConfig>;
+    return saveAiModelConfig({
+      provider: typeof cfg.provider === 'string' ? cfg.provider : '',
+      apiKey: typeof cfg.apiKey === 'string' ? cfg.apiKey : '',
+      model: typeof cfg.model === 'string' ? cfg.model : 'deepseek-chat',
+    });
+  });
+
   ipcMain.handle(IPC.GetJobDecision, (_event, platform: unknown, platformJobId: unknown): JobDecisionView => {
     if (typeof platform !== 'string' || typeof platformJobId !== 'string' || !platformJobId) {
       return { decision: null, stale: false, staleReasons: [] };
@@ -210,7 +227,7 @@ export function registerIpc(): void {
     return getJobDecision(platform, platformJobId);
   });
 
-  ipcMain.handle(IPC.AnalyzeJobDecision, (_event, platform: unknown, platformJobId: unknown): JobDecisionView => {
+  ipcMain.handle(IPC.AnalyzeJobDecision, async (_event, platform: unknown, platformJobId: unknown): Promise<JobDecisionView> => {
     if (typeof platform !== 'string' || typeof platformJobId !== 'string' || !platformJobId) {
       throw new Error('无效的岗位标识。');
     }
@@ -232,7 +249,9 @@ export function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.GetBatchStats, (_event, platform: unknown): BatchStats => {
-    if (typeof platform !== 'string' || !platform) return { total: 0, pending: 0 };
+    if (typeof platform !== 'string' || !platform) {
+      return { total: 0, autoApply: 0, review: 0, skip: 0, failed: 0, pending: 0 };
+    }
     return getBatchStats(platform);
   });
 

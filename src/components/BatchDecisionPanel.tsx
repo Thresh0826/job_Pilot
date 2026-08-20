@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Check, Inbox, Sparkles, X } from 'lucide-react';
-import type { ReviewQueueItem } from '../../core/decision';
+import type { BatchStats, ReviewQueueItem } from '../../core/decision';
 import { useJobsStore } from '../stores/useJobsStore';
 import { Badge, Button, useToast } from './ui';
 
 /**
- * V0.4-C 批量岗位决策面板（Jobs 页面）：
+ * V0.4-C/D 批量岗位决策面板（Jobs 页面）：
  * - 「分析本次新岗位（N）」：只处理最近一次搜索运行发现的岗位
- * - 实时进度与汇总：总岗位 / 已完成 / 待处理 / 适合自动投递 / 需要确认 / 已跳过 / 失败
- * - 触发平台安全验证 → PAUSED：提示去 BOSS 人工处理后「继续分析」（从剩余岗位继续）
- * - REVIEW 队列：可「允许投递 / 跳过」；可中途停止，已完成结果保留
+ * - 顶部统计以服务端实时统计为准（AUTO_APPLY / REVIEW / SKIP / FAILED / 待处理），
+ *   与 REVIEW 队列 / 分类进入后数量严格一致
+ * - REVIEW 队列操作（允许投递 / 跳过）后重新拉取服务端统计，数字立即对齐
+ * - 可中途停止，已完成结果保留；继续分析只处理剩余
  */
 export function BatchDecisionPanel() {
   const toast = useToast();
@@ -20,16 +21,18 @@ export function BatchDecisionPanel() {
   const setResult = useJobsStore((s) => s.setBatchResult);
   const setRunning = useJobsStore((s) => s.setRunningBatch);
 
-  const [stats, setStats] = useState<{ total: number; pending: number } | null>(null);
+  const [stats, setStats] = useState<BatchStats | null>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewItems, setReviewItems] = useState<ReviewQueueItem[] | null>(null);
   const [handling, setHandling] = useState(false);
 
-  const refreshStats = async () => {
+  const refreshStats = async (): Promise<BatchStats | null> => {
     try {
-      setStats(await window.api.getBatchStats('BOSS'));
+      const s = await window.api.getBatchStats('BOSS');
+      setStats(s);
+      return s;
     } catch {
-      // 忽略统计读取失败
+      return null;
     }
   };
 
@@ -54,10 +57,10 @@ export function BatchDecisionPanel() {
         status: 'CANCELLED',
         total: stats?.total ?? 0,
         done: 0,
-        autoApply: 0,
-        review: 0,
-        skip: 0,
-        failed: 0,
+        autoApply: stats?.autoApply ?? 0,
+        review: stats?.review ?? 0,
+        skip: stats?.skip ?? 0,
+        failed: stats?.failed ?? 0,
         pending: stats?.pending ?? 0,
       });
       toast(err instanceof Error ? err.message : '批量分析失败', 'error');
@@ -88,14 +91,21 @@ export function BatchDecisionPanel() {
     setHandling(true);
     try {
       await window.api.updateJobDecisionAction('BOSS', item.platformJobId, action);
+      // 从队列移除，并重新拉取服务端统计（数字与队列严格一致，不再本地近似）
       setReviewItems((items) => items?.filter((it) => it.platformJobId !== item.platformJobId) ?? null);
-      const current = useJobsStore.getState().batchResult;
-      if (current) {
+      const s = await refreshStats();
+      // 批量结果视图同步为最新统计（status 保留）
+      const latest = useJobsStore.getState().batchResult;
+      if (latest && s) {
         setResult({
-          ...current,
-          review: Math.max(0, current.review - 1),
-          done: Math.max(0, current.done - 1),
-          pending: current.pending + 1,
+          ...latest,
+          total: s.total,
+          autoApply: s.autoApply,
+          review: s.review,
+          skip: s.skip,
+          failed: s.failed,
+          pending: s.pending,
+          done: s.autoApply + s.review + s.skip,
         });
       }
       toast(action === 'ALLOW' ? '已标记为允许投递' : '已跳过该岗位');
@@ -106,8 +116,8 @@ export function BatchDecisionPanel() {
     }
   };
 
-  const reviewCount = result?.review ?? 0;
-  const totalCount = running ? (progress?.total ?? 0) : (result?.total ?? stats?.total ?? 0);
+  const reviewCount = stats?.review ?? 0;
+  const totalCount = stats?.total ?? 0;
   const showIdle = !running && !result;
 
   return (
@@ -139,7 +149,6 @@ export function BatchDecisionPanel() {
           </div>
           <BatchCounts
             total={progress?.total ?? 0}
-            done={progress?.done ?? 0}
             pending={progress?.pending ?? 0}
             autoApply={progress?.autoApply ?? 0}
             review={progress?.review ?? 0}
@@ -164,7 +173,6 @@ export function BatchDecisionPanel() {
           ) : null}
           <BatchCounts
             total={result.total}
-            done={result.done}
             pending={result.pending}
             autoApply={result.autoApply}
             review={result.review}
@@ -188,6 +196,27 @@ export function BatchDecisionPanel() {
         </div>
       ) : null}
 
+      {/* 已分析完成且无进行中任务的实时统计（REVIEW 操作后保持一致） */}
+      {!running && result === null && stats ? (
+        <div className="mt-8">
+          <BatchCounts
+            total={stats.total}
+            pending={stats.pending}
+            autoApply={stats.autoApply}
+            review={stats.review}
+            skip={stats.skip}
+            failed={stats.failed}
+          />
+          {stats.review > 0 ? (
+            <div className="row mt-16" style={{ justifyContent: 'flex-start' }}>
+              <Button size="sm" onClick={() => void openReview()}>
+                <Inbox size={14} /> 需要你确认 · {stats.review}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       {reviewOpen ? (
         <ReviewQueueList
           items={reviewItems}
@@ -200,9 +229,9 @@ export function BatchDecisionPanel() {
   );
 }
 
+/** 六项状态模型（恒等式：总岗位 = 待分析 + 适合自动投递 + 需要确认 + 已跳过 + 失败）。 */
 function BatchCounts({
   total,
-  done,
   pending,
   autoApply,
   review,
@@ -210,7 +239,6 @@ function BatchCounts({
   failed,
 }: {
   total: number;
-  done: number;
   pending: number;
   autoApply: number;
   review: number;
@@ -224,13 +252,8 @@ function BatchCounts({
           总岗位 <b>{total}</b>
         </span>
         <span>
-          已完成 <b style={{ color: 'var(--jp-agent)' }}>{done}</b>
+          待分析 <b style={{ color: 'var(--jp-accent)' }}>{pending}</b>
         </span>
-        <span>
-          待处理 <b style={{ color: 'var(--jp-attention)' }}>{pending}</b>
-        </span>
-      </div>
-      <div className="batch-stats mt-8">
         <span>
           适合自动投递 <b style={{ color: 'var(--jp-agent)' }}>{autoApply}</b>
         </span>

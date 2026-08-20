@@ -167,11 +167,40 @@ AI 岗位评分继续留在 V0.4。
 
 状态：
 
-**V0.4-A / V0.4-B 已完成并提交，V0.4-C 开发完成（等待人工验收），V0.5 计划中**
+**V0.4-A / V0.4-B / V0.4-C 已完成并提交，V0.4-D 开发完成（等待人工验收），V0.5 计划中**
 
 目标：
 
 > 判断已经发现的岗位到底是否值得投递。
+
+## V0.4-D — LLM 语义决策升级（开发完成）
+
+状态：
+
+**开发完成，等待人工验收**
+
+已完成：
+
+* LLM Provider 抽象（core/decision/provider）：输入输出契约与本地引擎一致，可替换实现
+* DeepSeek Provider（deepseek-chat，OpenAI 兼容 HTTP）：结构化提示词（候选人资料 + 求职规则 + 完整 JD）→
+  严格 JSON 输出（verdict / matches / risks / unknowns / reason / confidence），zod 校验 + 容错解析
+* 决策流程：配置了 API Key → LLM 语义判断（方向 / 技能 / 风险 / 不确定项 / 简短理由）；
+  未配置或 LLM 调用失败 → 自动回退本地规则引擎（可用性保证）
+* 硬规则护栏（产品铁律）：用户明确硬规则（城市 / 薪资 / 外包 / 单休 / 排除词 / 学历经验严格模式）
+  优先级高于 LLM —— LLM 结果若违反 → 强制 SKIP 并列出违反项
+* 防编造约束：系统提示强约束「只能使用提供的信息；简历没写≠不会 → 不确定时 REVIEW」
+* 模型配置：Settings「AI 模型」区（API Key / 模型名，Key 仅存本机数据目录，禁止提交 Git）；
+  AI 配置与决策结果复用 / 过期机制不受 Provider 影响
+* 自动测试：mock Provider 流程（LLM 生效 / 护栏强制 SKIP / LLM 失败回退 / 未配置回退 / 复用过期）+
+  真实 DeepSeek API 冒烟脚本（deepseek:smoke，需 JOBPILOT_DEEPSEEK_KEY 环境变量）
+* 已知限制：远程 API 会把候选人资料与 JD 发送给模型服务商（设置页明示）；LLM 输出质量取决于模型，
+  硬规则护栏保证用户明确条件不被 AI 覆盖
+
+明确不包含：
+
+* 自动投递 / HR 消息
+* 简历改写
+* 多模型自动切换（当前固定 DeepSeek，Provider 接口已支持后续扩展）
 
 ## V0.4-A — Candidate Profile / 简历基础能力（已完成）
 

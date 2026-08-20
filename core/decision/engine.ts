@@ -153,16 +153,16 @@ function directionHit(job: DecisionInput['job'], rules: DecisionInput['rules']):
   return targets.some((t) => texts.includes(t) || job.title.includes(t) || t.includes(job.title));
 }
 
-/** 核心决策函数：DecisionInput → JobDecision（createdAt/updatedAt/userAction 由调用方补充）。 */
-export function decideJob(input: DecisionInput): Omit<JobDecision, 'createdAt' | 'updatedAt' | 'userAction'> {
-  const { job, profile, rules } = input;
-
+/**
+ * 硬规则检查（用户明确条件优先，优先级高于任何 AI / LLM 判断）。
+ * 供本地引擎与 LLM 决策的「硬规则护栏」共用。
+ */
+export function computeHardViolations(
+  job: DecisionInput['job'],
+  rules: DecisionInput['rules'],
+  profile: DecisionInput['profile'],
+): string[] {
   const violations: string[] = [];
-  const risks: string[] = [];
-  const unknowns: string[] = [];
-  const matches: string[] = [];
-
-  /* ---------- 1. 硬规则（用户明确条件优先） ---------- */
   if (rules.targetCities.length > 0 && job.city) {
     if (!rules.targetCities.includes(job.city)) {
       violations.push(`城市：目标为「${rules.targetCities.join('/')}」，岗位在「${job.city}」`);
@@ -197,6 +197,17 @@ export function decideJob(input: DecisionInput): Omit<JobDecision, 'createdAt' |
   if (expLow && rules.experienceTolerance === 'STRICT') {
     violations.push(`经验：岗位要求 ${job.experience ?? '更多经验'}，你的经验不足`);
   }
+  return violations;
+}
+
+/** 核心决策函数：DecisionInput → JobDecision（createdAt/updatedAt/userAction 由调用方补充）。 */
+export function decideJob(input: DecisionInput): Omit<JobDecision, 'createdAt' | 'updatedAt' | 'userAction'> {
+  const { job, profile, rules } = input;
+
+  const violations = computeHardViolations(job, rules, profile);
+  const risks: string[] = [];
+  const unknowns: string[] = [];
+  const matches: string[] = [];
 
   if (violations.length > 0) {
     return {
@@ -215,6 +226,14 @@ export function decideJob(input: DecisionInput): Omit<JobDecision, 'createdAt' |
   }
 
   /* ---------- 2. 信号分析 ---------- */
+  const jobDeg = jobDegreeRank(job);
+  const userDeg = userDegreeRank(profile);
+  const degreeLow = jobDeg !== null && userDeg !== null && userDeg < jobDeg;
+  const jobExp = jobExperienceMax(job);
+  const userYrs = userYears(profile);
+  const expLow = jobExp !== null && userYrs !== null && userYrs < jobExp;
+  const salaryMin = parseSalaryMin(job.salary, job.salaryMin);
+
   const hit = directionHit(job, rules);
   if (rules.targetJobs.length > 0 && hit) {
     matches.push('岗位方向与你的目标岗位一致');

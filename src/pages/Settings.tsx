@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Bell,
   Bot,
+  BrainCircuit,
   Gavel,
   Plug,
   Settings as SettingsIcon,
@@ -19,11 +20,21 @@ import { ResumeForm } from '../components/forms/ResumeForm';
 import { TargetForm } from '../components/forms/TargetForm';
 import { PreferencesForm } from '../components/forms/PreferencesForm';
 import { AiPermissionsForm } from '../components/forms/AiPermissionsForm';
+import { AiModelConfigForm } from '../components/forms/AiModelConfigForm';
 import { NotificationForm } from '../components/forms/NotificationForm';
 import { PlatformForm } from '../components/forms/PlatformForm';
 import { DecisionRulesForm } from '../components/forms/DecisionRulesForm';
 
-type SectionId = 'profile' | 'target' | 'decision' | 'preference' | 'ai' | 'platform' | 'notification' | 'app';
+type SectionId =
+  | 'profile'
+  | 'target'
+  | 'decision'
+  | 'preference'
+  | 'ai'
+  | 'model'
+  | 'platform'
+  | 'notification'
+  | 'app';
 
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: 'profile', label: '个人资料', icon: User },
@@ -31,6 +42,7 @@ const SECTIONS: { id: SectionId; label: string; icon: LucideIcon }[] = [
   { id: 'decision', label: '求职规则', icon: Gavel },
   { id: 'preference', label: '工作偏好', icon: SlidersHorizontal },
   { id: 'ai', label: 'AI 权限', icon: Bot },
+  { id: 'model', label: 'AI 模型', icon: BrainCircuit },
   { id: 'platform', label: '招聘平台', icon: Plug },
   { id: 'notification', label: '通知', icon: Bell },
   { id: 'app', label: '应用设置', icon: SettingsIcon },
@@ -133,6 +145,18 @@ export default function Settings() {
                 value={draft.aiPermissions}
                 onChange={(aiPermissions) => update({ aiPermissions })}
               />
+            )}
+
+            {section === 'model' && (
+              <div>
+                <h2 className="section-title" style={{ margin: '0 0 16px' }}>
+                  AI 模型
+                </h2>
+                <div className="small muted" style={{ marginBottom: 24 }}>
+                  配置岗位决策使用的 LLM。未配置时使用本地规则引擎。
+                </div>
+                <AiModelConfigForm />
+              </div>
             )}
 
             {section === 'platform' && <PlatformForm />}

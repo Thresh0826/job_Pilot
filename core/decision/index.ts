@@ -186,11 +186,19 @@ export interface BatchAnalysisResult {
   pending: number;
 }
 
-/** 批量分析前统计（「分析本次新岗位（N）」）。 */
+/**
+ * 批量分析统计（与批量结果同口径，服务端实时计算）：
+ * - 有效状态口径：AUTO_APPLY = verdict AUTO_APPLY 或用户已允许(ALLOW)；
+ *   REVIEW = verdict REVIEW 且用户未处理；SKIP = verdict SKIP 或用户已跳过；
+ *   FAILED = 详情/决策失败标记；PENDING = 未完成。
+ * 校验：total = autoApply + review + skip + failed + pending。
+ */
 export interface BatchStats {
-  /** 本次发现批次内的总岗位数。 */
   total: number;
-  /** 待处理数（需要分析的）。 */
+  autoApply: number;
+  review: number;
+  skip: number;
+  failed: number;
   pending: number;
 }
 

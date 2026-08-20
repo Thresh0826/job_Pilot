@@ -10,11 +10,16 @@ import {
   type DecisionRules,
   type JobDecision,
   type JobDecisionView,
+  type ReviewQueueItem,
 } from '../../../core/decision';
-import { decideJob } from '../../../core/decision/engine';
+import { computeHardViolations, decideJob } from '../../../core/decision/engine';
+import type { DecisionLlmProvider, LlmDecision } from '../../../core/decision/provider';
 import * as decisionRepo from '../../../database/repositories/decisionRepository';
 import { clearAnalysisFailed, getJobDecisionSource } from '../../../database/repositories/jobRepository';
+import { getAiModelConfig } from '../../../database/repositories/settingsRepository';
 import { getCandidateSnapshot } from './candidateService';
+import { DeepSeekProvider } from './llm/deepseekProvider';
+import { logger } from '../logger';
 
 /**
  * V0.4-B 岗位决策服务（Electron Main）。
@@ -112,10 +117,33 @@ export function getJobDecision(platform: string, platformJobId: string): JobDeci
 }
 
 /**
- * 分析（或重新分析）岗位：读取本地数据 → 决策引擎 → 持久化。
+ * 分析（或重新分析）岗位：读取本地数据 → 决策（LLM Provider 优先，未配置回退本地规则引擎）→ 持久化。
  * 同一岗位重复调用即“重新分析”，直接覆盖旧结果。
  */
-export function analyzeJobDecision(platform: string, platformJobId: string): JobDecisionView {
+export function analyzeJobDecision(platform: string, platformJobId: string): Promise<JobDecisionView> {
+  const provider = buildConfiguredProvider();
+  return analyzeJobDecisionWith(platform, platformJobId, provider);
+}
+
+/** 读取 AI 配置并构造 Provider；未配置 Key 时返回 null（调用方回退本地引擎）。 */
+export function buildConfiguredProvider(): DecisionLlmProvider | null {
+  const cfg = getAiModelConfig();
+  if (!cfg.provider || !cfg.apiKey) return null;
+  if (cfg.provider === 'deepseek') {
+    return new DeepSeekProvider({ apiKey: cfg.apiKey, model: cfg.model });
+  }
+  return null;
+}
+
+/**
+ * 使用指定 Provider 分析岗位（测试可注入 mock）。
+ * provider 为 null 时回退本地确定性规则引擎。
+ */
+export async function analyzeJobDecisionWith(
+  platform: string,
+  platformJobId: string,
+  provider: DecisionLlmProvider | null,
+): Promise<JobDecisionView> {
   const job = buildJobInput(platform, platformJobId);
   if (!job) throw new Error('岗位不存在，请先读取岗位详情。');
   if (!job.jdText) throw new Error('岗位缺少完整 JD，请先打开岗位详情。');
@@ -126,14 +154,74 @@ export function analyzeJobDecision(platform: string, platformJobId: string): Job
   const profile = currentProfile();
   if (!profile) throw new Error('还没有候选人资料，请先在「我的资料」上传简历并确认。');
   const rules = currentRules();
-
   const input: DecisionInput = { job, profile, rules };
-  const base = decideJob(input);
   const contextHash = buildContextHash(job, profile, rules);
+
+  let base: ReturnType<typeof decideJob>;
+  if (provider) {
+    base = await decideWithLlm(input, provider);
+  } else {
+    base = decideJob(input);
+  }
   const decision = decisionRepo.upsertDecision({ ...base, contextHash });
   // 分析成功 → 清除批量失败标记（失败岗位可通过单岗位分析重试）
   clearAnalysisFailed(platform, platformJobId);
   return { decision, stale: false, staleReasons: [] };
+}
+
+/**
+ * LLM 语义决策 + 硬规则护栏：
+ * - 语义判断（方向 / 技能 / 风险 / 理由）由 LLM 给出
+ * - 用户明确硬规则违反 → 强制 SKIP（产品铁律：用户规则优先于 AI 判断）
+ * - LLM 调用失败 → 回退本地规则引擎（保证可用）
+ */
+async function decideWithLlm(
+  input: DecisionInput,
+  provider: DecisionLlmProvider,
+): Promise<ReturnType<typeof decideJob>> {
+  const { job, profile, rules } = input;
+  const violations = computeHardViolations(job, rules, profile);
+  // 硬规则违反：即使 LLM 判断 AUTO_APPLY，也必须 SKIP。
+  if (violations.length > 0) {
+    return {
+      platform: job.platform,
+      platformJobId: job.platformJobId,
+      verdict: 'SKIP',
+      score: 30 - violations.length * 10,
+      confidence: 'HIGH',
+      matches: [],
+      risks: [],
+      unknowns: [],
+      reason: `违反你的明确规则：${violations[0]}${violations.length > 1 ? ` 等 ${violations.length} 项` : ''}。`,
+      ruleViolations: violations,
+      contextHash: '',
+    };
+  }
+
+  let llm: LlmDecision;
+  try {
+    llm = await provider.decide({ profile, rules, job });
+  } catch (err) {
+    logger.error(
+      'llm',
+      `LLM 决策失败（回退本地规则引擎）：${err instanceof Error ? err.message : String(err)}`,
+    );
+    return decideJob(input);
+  }
+
+  return {
+    platform: job.platform,
+    platformJobId: job.platformJobId,
+    verdict: llm.verdict,
+    score: llm.confidence === 'HIGH' ? 80 : 65,
+    confidence: llm.confidence,
+    matches: llm.matches,
+    risks: llm.risks,
+    unknowns: llm.unknowns,
+    reason: llm.reason,
+    ruleViolations: [],
+    contextHash: '',
+  };
 }
 
 /** 读取 / 保存用户求职规则。 */
@@ -161,6 +249,18 @@ export function isDecisionValidFor(platform: string, platformJobId: string, save
   const rules = currentRules();
   if (!job || !job.jdText || !profile) return false;
   return staleReasons(savedContextHash, buildContextHash(job, profile, rules)).length === 0;
+}
+
+/**
+ * REVIEW 队列（与顶部统计「需要确认」严格同口径）：
+ * 只包含「决策在当前上下文下仍有效」的 REVIEW 且用户未处理（user_action=NONE）。
+ * 决策已过期的 REVIEW 归入「待分析」（需要重新分析），不进入队列。
+ */
+export function getReviewQueue(platform: string): ReviewQueueItem[] {
+  const candidates = decisionRepo.getReviewQueue(platform);
+  return candidates.filter((item) =>
+    isDecisionValidFor(platform, item.platformJobId, item.decision.contextHash),
+  );
 }
 
 /**
